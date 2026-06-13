@@ -3,6 +3,10 @@
 /node_modules
 /build
 
+# ai
+.agents/*
+CLAUDE.md
+
 # Logs
 logs
 *.log

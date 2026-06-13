@@ -1,0 +1,1 @@
+A centralized CLI builder and synchronizer for AI agent rules. Manage global standards and project-specific contexts from a single repository.
