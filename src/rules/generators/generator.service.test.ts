@@ -79,7 +79,7 @@ describe('generateClaudeMd', () => {
   });
 
   it('includes footer', () => {
-    expect(generateClaudeMd(fullContext)[0].content).toContain('agent-rules-sync-cli');
+    expect(generateClaudeMd(fullContext)[0].content).toContain('agent-context-sync-cli');
   });
 });
 

@@ -1,7 +1,7 @@
 /**
- * Entry point for the agent-rules-sync-cli tool.
+ * Entry point for the agent-context-sync-cli tool.
  *
- * Run via: `node dist/index.js` or `npx agent-rules-sync-cli`
+ * Run via: `node dist/index.js` or `npx agent-context-sync-cli`
  */
 
 import path from 'node:path';

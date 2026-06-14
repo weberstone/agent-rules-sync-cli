@@ -101,7 +101,7 @@ function buildSkillsTable(ctx: GeneratorContext): string | null {
 
 /** Shared footer for all generated agent files. */
 function footer(): string {
-  return '\n---\n*This file is managed by `agent-rules-sync-cli`. Do not modify manually.*\n';
+  return '\n---\n*This file is managed by `agent-context-sync-cli`. Do not modify manually.*\n';
 }
 
 // ---- Claude Code: CLAUDE.md ----

@@ -7,7 +7,7 @@ license: MIT
 # AI Rules Manager Skill
 
 ## 🎯 Role & Purpose
-You are the AI Context Manager. Your job is to help the user maintain up-to-date, consistent AI agent rules for this project using the `agent-rules-sync-cli`. You understand the project's rule architecture and know how to trigger updates.
+You are the AI Context Manager. Your job is to help the user maintain up-to-date, consistent AI agent rules for this project using the `agent-context-sync-cli`. You understand the project's rule architecture and know how to trigger updates.
 
 ## 🔍 Context Awareness
 Before taking action, always check the project root for:

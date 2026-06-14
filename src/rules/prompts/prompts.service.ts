@@ -42,7 +42,7 @@ export class PromptService {
    * @returns `Answers` with all user choices, or `null` if the user cancelled.
    */
   async run(projectName: string): Promise<Answers | null> {
-    intro(C.cyan('agent-rules-sync-cli'));
+    intro(C.cyan('agent-context-sync-cli'));
 
     if (!(await this.stepCheckSpec(projectName))) return null;
 

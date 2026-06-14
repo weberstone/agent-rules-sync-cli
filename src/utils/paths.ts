@@ -39,7 +39,7 @@ async function findProjectRoot(startDir: string): Promise<string> {
     dir = path.dirname(dir);
   }
   throw new Error(
-    'Cannot find context/rules/ directory. The package may be corrupted — reinstall agent-rules-sync-cli.',
+    'Cannot find context/rules/ directory. The package may be corrupted — reinstall agent-context-sync-cli.',
   );
 }
 

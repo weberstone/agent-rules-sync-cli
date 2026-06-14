@@ -1,4 +1,4 @@
-# agent-rules-sync-cli
+agent-context-sync-cli
 
 Centralized, modular AI agent rules and skills manager. Interactive CLI — generates per-project rule files and installs reusable skills for multiple AI coding agents.
 
@@ -6,12 +6,12 @@ Centralized, modular AI agent rules and skills manager. Interactive CLI — gene
 
 ```bash
 # Remote (recommended)
-npx github:your-username/agent-rules-sync-cli
+npx github:your-username/agent-context-sync-cli
 
 # Local
-git clone https://github.com/your-username/agent-rules-sync-cli.git
+git clone https://github.com/your-username/agent-context-sync-cli.git
 cd your-project
-node ../agent-rules-sync-cli/dist/index.js
+node ../agent-context-sync-cli/dist/index.js
 ```
 
 ## How It Works

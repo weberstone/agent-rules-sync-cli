@@ -67,7 +67,7 @@ export class OrchestratorService {
     if (!(await this.preflightRulesDir())) return;
     if (!(await this.preflightWriteAccess())) return;
 
-    if (process.stdin.isTTY) intro('agent-rules-sync-cli');
+    if (process.stdin.isTTY) intro('agent-context-sync-cli');
 
     // 1. Config discovery
     const configAnswers = await this.resolveConfig();
@@ -178,7 +178,7 @@ export class OrchestratorService {
       logError(
         `Rules directory not accessible: ${this.rulesDir}\n` +
           `${(err as Error).message}\n` +
-          'Make sure the agent-rules-sync-cli package includes the rules/ directory.',
+          'Make sure the agent-context-sync-cli package includes the rules/ directory.',
       );
       return false;
     }

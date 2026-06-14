@@ -1,5 +1,5 @@
 {
-  "name": "agent-rules-sync-cli",
+  "name": "agent-context-sync-cli",
   "version": "0.1.0",
   "description": "Centralized AI agent rules manager — interactive CLI to generate per-project rule files",
   "type": "module",
