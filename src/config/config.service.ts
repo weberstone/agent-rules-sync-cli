@@ -1,3 +1,16 @@
+/**
+ * Reads, writes, and validates `ai-rules-config.json`.
+ *
+ * The config file persists the user's questionnaire answers so that
+ * subsequent runs can skip the interactive prompts and regenerate rules
+ * directly. Validation is done manually (no schema library) to keep
+ * the bundle small — the config has a flat structure with only 8 fields.
+ *
+ * Error recovery: if the file is missing, corrupted, or has an invalid
+ * structure, `read()` returns `null` and logs a warning. The orchestrator
+ * interprets `null` as "start a fresh questionnaire."
+ */
+
 import path from 'node:path';
 import { readTextFile, writeTextFile } from '../utils/fs.js';
 import { logWarning } from '../utils/log.js';
@@ -25,10 +38,20 @@ const REQUIRED_FIELDS: ReadonlyArray<keyof Config> = [
 export class ConfigService {
   private readonly configPath: string;
 
+  /**
+   * @param targetDir — the target project root (`process.cwd()`)
+   */
   constructor(targetDir: string) {
     this.configPath = path.join(targetDir, CONFIG_FILENAME);
   }
 
+  /**
+   * Read and validate the config file.
+   *
+   * @returns A valid `Config`, or `null` if the file is missing,
+   *          corrupted (invalid JSON), or structurally invalid.
+   *          A warning is logged for corruption/invalid structure.
+   */
   async read(): Promise<Config | null> {
     let raw: string;
     try {
@@ -61,11 +84,21 @@ export class ConfigService {
     }
   }
 
+  /** Write a `Config` object as pretty-printed JSON. Overwrites existing file. */
   async write(config: Config): Promise<void> {
     const json = JSON.stringify(config, null, 2);
     await writeTextFile(this.configPath, json);
   }
 
+  /**
+   * Runtime validation of parsed JSON.
+   *
+   * Checks that all required fields are present and have the correct types.
+   * Uses manual type-checking (typeof, Array.isArray, Set.has) instead of a
+   * schema library — the config is flat, so this adds zero dependencies.
+   *
+   * @throws with a descriptive message on validation failure.
+   */
   private validate(data: unknown): Config {
     if (typeof data !== 'object' || data === null) {
       throw new Error('must be a non-null object');

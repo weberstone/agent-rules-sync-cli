@@ -1,3 +1,15 @@
+/**
+ * Interactive questionnaire — steps 2 through 7 of the PRD flow.
+ *
+ * Uses `@clack/prompts` (via the typed adapter) for all user interaction.
+ * Each step is a private method that returns its result or `null` on cancel.
+ * The public `run()` method orchestrates the sequence and propagates
+ * cancellation: any step returning `null` causes the entire flow to abort.
+ *
+ * Dependency: `DiscoveryService` is injected to scan available options
+ * (architectures, frameworks, packages) and detect project overrides.
+ */
+
 import { intro, outro, cancel, isCancel, confirm, select, multiselect } from './clack-adapter.js';
 import type { Architecture } from '../config/config.types.js';
 import type { DiscoveryService } from '../discovery/discovery.service.js';
@@ -16,6 +28,7 @@ const C = {
   yellow: (s: string) => `\x1b[33m${s}\x1b[39m`,
 };
 
+/** Type-narrowing helper: returns true if the value is a `@clack/prompts` cancel symbol. */
 function isCancelSignal(value: unknown): value is symbol {
   return isCancel(value);
 }
@@ -23,6 +36,13 @@ function isCancelSignal(value: unknown): value is symbol {
 export class PromptService {
   constructor(private readonly discovery: DiscoveryService) {}
 
+  /**
+   * Run the full questionnaire.
+   *
+   * @param projectName — `path.basename(process.cwd())`, used to check for
+   *                      per-project overrides.
+   * @returns `Answers` with all user choices, or `null` if the user cancelled.
+   */
   async run(projectName: string): Promise<Answers | null> {
     intro(C.cyan('agent-rules-sync-cli'));
 
@@ -60,8 +80,9 @@ export class PromptService {
     };
   }
 
-  // ---- Step 2 ----
+  // ---- Step 2: Project spec check ----
 
+  /** Check if a per-project spec.md exists. If not, ask the user whether to continue. */
   private async stepCheckSpec(projectName: string): Promise<boolean> {
     const hasSpec = await this.discovery.hasProjectOverride(projectName, 'spec.md');
 
@@ -82,8 +103,12 @@ export class PromptService {
     return true;
   }
 
-  // ---- Step 3 ----
+  // ---- Step 3: Architecture selection ----
 
+  /**
+   * Ask the user to pick an architecture type.
+   * Options are dynamically built from which directories exist in `context/rules/`.
+   */
   private async stepArchitecture(): Promise<Architecture | null> {
     const available = await this.discovery.getAvailableArchitectures();
 
@@ -110,8 +135,12 @@ export class PromptService {
     return choice as Architecture;
   }
 
-  // ---- Step 3b ----
+  // ---- Step 3b: Userprompt check ----
 
+  /**
+   * Check for userprompt.md (project override → general template).
+   * If not found anywhere, warn and ask whether to continue.
+   */
   private async stepUserprompt(
     architecture: Architecture,
     projectName: string,
@@ -149,8 +178,12 @@ export class PromptService {
     return { hasUserprompt: false, userpromptSource: null };
   }
 
-  // ---- Step 4 ----
+  // ---- Step 4: Framework selection ----
 
+  /**
+   * Framework selection. Frontend/Backend use radio (single choice),
+   * Fullstack uses multiselect (multiple frameworks from the fullstack directory only).
+   */
   private async stepFrameworks(architecture: Architecture): Promise<string[] | null> {
     const available = await this.discovery.listFrameworks(architecture);
 
@@ -199,8 +232,9 @@ export class PromptService {
     return [choice];
   }
 
-  // ---- Step 5 ----
+  // ---- Step 5: Package selection ----
 
+  /** Package/tool multiselect. Nothing selected is valid (returns []). */
   private async stepPackages(architecture: Architecture): Promise<string[] | null> {
     const available = await this.discovery.listPackages(architecture);
 
@@ -236,8 +270,12 @@ export class PromptService {
     return choices;
   }
 
-  // ---- Step 6 ----
+  // ---- Step 6: Workflow check ----
 
+  /**
+   * Check for workflow.md. Project override takes precedence over general.
+   * If neither exists, warn and ask whether to continue.
+   */
   private async stepWorkflow(
     architecture: Architecture,
     projectName: string,
@@ -265,8 +303,9 @@ export class PromptService {
     return null;
   }
 
-  // ---- Step 7 ----
+  // ---- Step 7: Agent selection ----
 
+  /** Select which AI agents to generate config files for. Nothing selected is valid. */
   private async stepAgents(): Promise<string[] | null> {
     const options = AVAILABLE_AGENTS.map((a) => ({
       value: a.value,

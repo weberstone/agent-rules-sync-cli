@@ -1,3 +1,14 @@
+/**
+ * Assembles the final rule files from user choices and discovered templates.
+ *
+ * The compiler is **pure computation** — it does not write to disk.
+ * It takes `Answers` + `DiscoveryService` and returns a `CompiledFile[]`
+ * array in priority order. `null` results (missing files) are filtered out.
+ *
+ * Priority order in the output array:
+ *   userprompt → workflow → spec → architecture → frameworks → package-rules
+ */
+
 import type { DiscoveryService } from '../discovery/discovery.service.js';
 import type { Answers } from '../prompts/prompts.types.js';
 import type { CompiledFile } from './compiler.types.js';
@@ -7,6 +18,13 @@ const PACKAGE_RULES_HEADER = '# Code Style & Tools';
 export class CompilerService {
   constructor(private readonly discovery: DiscoveryService) {}
 
+  /**
+   * Compile all rule files from the user's answers.
+   *
+   * @param answers — user choices from the questionnaire
+   * @param projectName — used to resolve per-project overrides
+   * @returns files in priority order, with `null` entries filtered out
+   */
   async compile(answers: Answers, projectName: string): Promise<CompiledFile[]> {
     const results: (CompiledFile | null)[] = [
       await this.compileUserprompt(answers, projectName),
@@ -20,6 +38,7 @@ export class CompilerService {
     return results.filter((f): f is CompiledFile => f !== null);
   }
 
+  /** Userprompt: project override → general template → skip. */
   private async compileUserprompt(
     answers: Answers,
     projectName: string,
@@ -36,6 +55,7 @@ export class CompilerService {
     return { filename: 'userprompt.md', content };
   }
 
+  /** Spec: only from per-project override. No general spec exists. */
   private async compileSpec(projectName: string): Promise<CompiledFile | null> {
     const content = await this.discovery.getProjectOverride(projectName, 'spec.md');
 
@@ -44,6 +64,7 @@ export class CompilerService {
     return { filename: 'spec.md', content };
   }
 
+  /** Architecture: project override → general template. Uses `??` for short-circuit. */
   private async compileArchitecture(
     answers: Answers,
     projectName: string,
@@ -57,6 +78,7 @@ export class CompilerService {
     return { filename: 'architecture.md', content };
   }
 
+  /** Frameworks: one file per selected framework. Filename = original template name. */
   private async compileFrameworks(answers: Answers): Promise<CompiledFile[]> {
     const results: CompiledFile[] = [];
     for (const name of answers.frameworks) {
@@ -72,6 +94,11 @@ export class CompilerService {
     return results;
   }
 
+  /**
+   * Package rules: concatenation of selected package files.
+   * Header `# Code Style & Tools`, content separated by `\n\n`.
+   * If nothing selected → `null` (file not created).
+   */
   private async compilePackageRules(answers: Answers): Promise<CompiledFile | null> {
     if (answers.packages.length === 0) return null;
 
@@ -93,6 +120,7 @@ export class CompilerService {
     return { filename: 'package-rules.md', content };
   }
 
+  /** Workflow: project override → general template → skip. */
   private async compileWorkflow(
     answers: Answers,
     projectName: string,

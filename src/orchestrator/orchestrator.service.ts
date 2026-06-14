@@ -1,3 +1,15 @@
+/**
+ * Orchestrator — ties all services together into the complete CLI flow.
+ *
+ * Lifecycle:
+ *   preflight → config check → questionnaire (or skip) → compile →
+ *   write .agents/rules/ → generate & write agent files (with conflict
+ *   resolution) → save config → finale (ASCII Cthulhu + boxes)
+ *
+ * All services are injected via constructor (dependency injection),
+ * making the orchestrator testable with mock services.
+ */
+
 import { select, confirm, isCancel, cancel, outro, spinner } from '../prompts/clack-adapter.js';
 import { ConfigService } from '../config/config.service.js';
 import type { Config } from '../config/config.types.js';
@@ -12,6 +24,7 @@ import { OutputService } from '../output/output.service.js';
 import { logError } from '../utils/log.js';
 import fs from 'node:fs/promises';
 
+/** Known rule file names — used to separate framework files from standard ones. */
 const KNOWN_RULE_FILES = new Set([
   'userprompt.md',
   'workflow.md',
@@ -32,24 +45,22 @@ export class OrchestratorService {
     private readonly targetDir: string,
   ) {}
 
+  /** Run the full CLI lifecycle. Returns when done or on unrecoverable error. */
   async run(): Promise<void> {
     if (!(await this.preflightRulesDir())) return;
     if (!(await this.preflightWriteAccess())) return;
 
-    // 1. Config discovery
     const answers = await this.resolveAnswers();
     if (answers === null) return;
 
-    // 2. Compile rules
     const s = spinner();
     s.start('Compiling rules from templates...');
     const ruleFiles = await this.compiler.compile(answers, this.projectName);
 
-    // 3. Write .agents/rules/
     await this.output.writeRulesDir(ruleFiles);
     s.stop('Rules compiled and saved to .agents/rules/');
 
-    // 4. Generate & write agent files (interactive — spinner off)
+    // Agent files — interactive, spinner off
     const ctx = buildGeneratorContext(ruleFiles);
     const writtenFiles: string[] = [];
     for (const agentKey of answers.agents) {
@@ -65,18 +76,15 @@ export class OrchestratorService {
       }
     }
 
-    // 5. Save config
     await this.configService.write(buildConfig(answers, this.projectName));
 
-    // 6. Grand finale
     this.showFinale(ruleFiles, writtenFiles);
-
-    // 7. Gitignore warning
     this.showGitignoreWarning();
   }
 
-  // ---- Pre-flight ----
+  // ---- Pre-flight checks ----
 
+  /** Verify the template directory is accessible. Fail fast if not. */
   private async preflightRulesDir(): Promise<boolean> {
     try {
       await fs.access(this.rulesDir, fs.constants.R_OK);
@@ -91,6 +99,7 @@ export class OrchestratorService {
     }
   }
 
+  /** Verify the target directory is writable. Fail fast if not. */
   private async preflightWriteAccess(): Promise<boolean> {
     try {
       await fs.access(this.targetDir, fs.constants.W_OK);
@@ -105,8 +114,12 @@ export class OrchestratorService {
     }
   }
 
-  // ---- Private ----
+  // ---- Config / Answers resolution ----
 
+  /**
+   * Determine the answers: from existing config (if found and user agrees),
+   * or from a fresh questionnaire. Returns null if the user cancels.
+   */
   private async resolveAnswers(): Promise<Answers | null> {
     const existingConfig = await this.configService.read();
 
@@ -121,7 +134,7 @@ export class OrchestratorService {
       return this.promptService.run(this.projectName);
     }
 
-    // Non-interactive mode: auto-use existing config
+    // Non-interactive mode (CI/CD): auto-use existing config
     if (!process.stdin.isTTY) {
       return this.configToAnswers(existingConfig);
     }
@@ -142,6 +155,10 @@ export class OrchestratorService {
     return this.promptService.run(this.projectName);
   }
 
+  /**
+   * Reconstruct `Answers` from a saved `Config` by re-deriving
+   * `userpromptSource` and `workflowSource` from the file system.
+   */
   private async configToAnswers(config: Config): Promise<Answers> {
     const projectName = config.projectName;
     const arch = config.architecture;
@@ -179,6 +196,14 @@ export class OrchestratorService {
     };
   }
 
+  // ---- Agent file conflict resolution ----
+
+  /**
+   * Determine how to write an agent file:
+   * - File doesn't exist → `create`
+   * - File exists with SYNC markers → `update` (silent, safe)
+   * - File exists without markers → ask the user
+   */
   private async resolveWriteMode(
     filename: string,
   ): Promise<'create' | 'overwrite' | 'update' | 'skip'> {
@@ -205,14 +230,19 @@ export class OrchestratorService {
     return choice as 'update' | 'overwrite' | 'skip';
   }
 
+  // ---- Finale rendering ----
+
+  /** Render a horizontal rule in the given color. */
   private hr(color: (s: string) => string): string {
     return color('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   }
 
+  /** Render a padded line in the given color. */
   private padLine(raw: string, color: (s: string) => string): string {
     return '  ' + color(raw);
   }
 
+  /** Show the Cthulhu ASCII art, success box, and file listing. */
   private showFinale(ruleFiles: CompiledFile[], writtenFiles: string[]): void {
     const pc = this.colors;
 
@@ -240,7 +270,6 @@ export class OrchestratorService {
 
     outro(art.map((line, i) => line + (info[i] ?? '')).join('\n'));
 
-    // Success box — top/bottom borders only, no sides
     const files: string[] = ruleFiles.map((f) => f.filename);
     if (writtenFiles.length > 0) files.push(...writtenFiles);
 
@@ -255,6 +284,7 @@ export class OrchestratorService {
     outro(lines.join('\n'));
   }
 
+  /** Show the .gitignore recommendation box. */
   private async showGitignoreWarning(): Promise<void> {
     const pc = this.colors;
     const inGitignore = await this.output.isInGitignore('ai-rules-config.json');
@@ -273,6 +303,7 @@ export class OrchestratorService {
     }
   }
 
+  // ANSI color helpers — inline to avoid `this` binding issues after minification.
   private colors = {
     dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
     cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
@@ -285,8 +316,9 @@ export class OrchestratorService {
   };
 }
 
-// ---- Helpers ----
+// ---- Free functions (not stateful, shared across the orchestrator) ----
 
+/** Build GeneratorContext from the actual CompiledFile[] output — single source of truth. */
 function buildGeneratorContext(ruleFiles: CompiledFile[]): GeneratorContext {
   const filenames = new Set(ruleFiles.map((f) => f.filename));
 
@@ -302,6 +334,7 @@ function buildGeneratorContext(ruleFiles: CompiledFile[]): GeneratorContext {
   };
 }
 
+/** Build a Config object from Answers — ready for persistence. */
 function buildConfig(answers: Answers, projectName: string): Config {
   return {
     version: 1,

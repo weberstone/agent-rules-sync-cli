@@ -1,3 +1,14 @@
+/**
+ * Entry point for the agent-rules-sync-cli tool.
+ *
+ * Resolves paths, creates all service instances with dependency injection,
+ * and runs the orchestrator. The orchestrator handles the full lifecycle:
+ * preflight checks → config discovery → questionnaire → compilation →
+ * file generation → output with conflict resolution.
+ *
+ * Run via: `node dist/index.js` or `npx agent-rules-sync-cli`
+ */
+
 import { getTargetDir, getProjectName, getRulesDir } from './utils/paths.js';
 import { ConfigService } from './config/config.service.js';
 import { DiscoveryService } from './discovery/discovery.service.js';

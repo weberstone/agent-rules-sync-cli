@@ -1,6 +1,21 @@
+/**
+ * Agent config file generators.
+ *
+ * Each generator is a pure function that takes a `GeneratorContext` and returns
+ * one or more `AgentFile` objects. The `GeneratorRegistry` class maps agent keys
+ * to generators — adding a new agent requires only a new function + one `set()` call.
+ *
+ * All generators share `buildRows()`: a single function that builds the priority
+ * row list. This guarantees all agents use the same priority order and descriptions.
+ * Individual generators format these rows according to each agent's spec
+ * (Markdown table, YAML frontmatter, @import directives, etc.).
+ *
+ * Agent specifications are documented in `docs/agents/<agent>.md`.
+ */
+
 import type { AgentFile, AgentGenerator, GeneratorContext } from './generator.types.js';
 
-// ---- Priority Row Builder ----
+// ---- Priority Row Builder (shared across all generators) ----
 
 interface PriorityRow {
   priority: string;
@@ -8,6 +23,12 @@ interface PriorityRow {
   description: string;
 }
 
+/**
+ * Build an ordered list of priority rows from the generator context.
+ * Rows are only included for files that actually exist (as determined
+ * by the CompilerService output). Priorities are FIXED — missing files
+ * simply skip their row, numbers don't renumber.
+ */
 function buildRows(ctx: GeneratorContext): PriorityRow[] {
   const rows: PriorityRow[] = [];
 
@@ -62,6 +83,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
   return rows;
 }
 
+/** Shared footer for all generated agent files. */
 function footer(): string {
   return '\n---\n*This file is managed by `agent-rules-sync-cli`. Do not modify manually.*\n';
 }
@@ -201,6 +223,13 @@ function generateContinueRules(ctx: GeneratorContext): AgentFile[] {
 
 // ---- Registry ----
 
+/**
+ * Maps agent keys to generator functions (Strategy pattern).
+ * To add a new agent: write a generator function and call `set()` in the constructor.
+ *
+ * Singleton instance `generatorRegistry` is exported for convenience;
+ * a new `GeneratorRegistry()` can also be instantiated for testing.
+ */
 export class GeneratorRegistry {
   private readonly generators = new Map<string, AgentGenerator>();
 
@@ -213,6 +242,7 @@ export class GeneratorRegistry {
     this.generators.set('continue', generateContinueRules);
   }
 
+  /** Look up a generator by agent key. Returns `undefined` for unknown keys. */
   get(key: string): AgentGenerator | undefined {
     return this.generators.get(key);
   }
