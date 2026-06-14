@@ -12,9 +12,7 @@ async function findProjectRoot(startDir: string): Promise<string> {
       if (stat.isDirectory()) return dir;
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw new Error(
-          `Failed to read directory "${candidate}": ${(err as Error).message}`,
-        );
+        throw new Error(`Failed to read directory "${candidate}": ${(err as Error).message}`);
       }
       // ENOENT: no rules/ at this level, walk up to parent
     }

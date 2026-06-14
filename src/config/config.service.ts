@@ -33,8 +33,13 @@ export class ConfigService {
     let raw: string;
     try {
       raw = await readTextFile(this.configPath);
-    } catch {
-      // File does not exist — first run
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      logWarning(
+        `Cannot read config file: ${(err as Error).message}. A new questionnaire will be started.`,
+      );
       return null;
     }
 

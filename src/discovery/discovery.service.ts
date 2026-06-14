@@ -2,6 +2,8 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import type { Architecture } from '../config/config.types.js';
 import type { TemplateCategory } from './discovery.types.js';
+import { logWarning } from '../utils/log.js';
+import { isEnoent } from '../utils/fs.js';
 
 const ALL_ARCHITECTURES: readonly Architecture[] = ['frontend', 'backend', 'fullstack'];
 
@@ -16,8 +18,10 @@ export class DiscoveryService {
         if (stat.isDirectory()) {
           available.push(arch);
         }
-      } catch {
-        // directory does not exist — skip this architecture
+      } catch (err) {
+        if (!isEnoent(err)) {
+          logWarning(`Cannot read architecture directory "${arch}": ${(err as Error).message}`);
+        }
       }
     }
     return available;
@@ -66,7 +70,10 @@ export class DiscoveryService {
     let entries: string[];
     try {
       entries = await fs.readdir(dirPath);
-    } catch {
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(`Cannot read directory "${dirPath}": ${(err as Error).message}`);
+      }
       return [];
     }
 
@@ -77,7 +84,10 @@ export class DiscoveryService {
     let content: string;
     try {
       content = await fs.readFile(filePath, 'utf-8');
-    } catch {
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(`Cannot read file "${filePath}": ${(err as Error).message}`);
+      }
       return null;
     }
 

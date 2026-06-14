@@ -78,9 +78,10 @@ export class OrchestratorService {
     try {
       await fs.access(this.rulesDir, fs.constants.R_OK);
       return true;
-    } catch {
+    } catch (err) {
       logError(
-        `Rules directory not found or not readable: ${this.rulesDir}\n` +
+        `Rules directory not accessible: ${this.rulesDir}\n` +
+          `${(err as Error).message}\n` +
           'Make sure the agent-rules-sync-cli package includes the rules/ directory.',
       );
       return false;
@@ -91,9 +92,10 @@ export class OrchestratorService {
     try {
       await fs.access(this.targetDir, fs.constants.W_OK);
       return true;
-    } catch {
+    } catch (err) {
       logError(
-        `No write permission for target directory: ${this.targetDir}\n` +
+        `Cannot write to target directory: ${this.targetDir}\n` +
+          `${(err as Error).message}\n` +
           'Check directory permissions and try again.',
       );
       return false;

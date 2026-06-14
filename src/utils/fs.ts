@@ -11,3 +11,7 @@ export async function writeTextFile(filePath: string, content: string): Promise<
 export async function ensureDir(dirPath: string): Promise<void> {
   await fs.mkdir(dirPath, { recursive: true });
 }
+
+export function isEnoent(err: unknown): boolean {
+  return (err as NodeJS.ErrnoException).code === 'ENOENT';
+}

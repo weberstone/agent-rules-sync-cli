@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { writeTextFile, ensureDir } from '../utils/fs.js';
-import { readTextFile } from '../utils/fs.js';
+import { writeTextFile, ensureDir, readTextFile, isEnoent } from '../utils/fs.js';
+import { logWarning } from '../utils/log.js';
 import type { CompiledFile } from '../compiler/compiler.types.js';
 
 const RULES_DIR = '.agents/rules';
@@ -26,7 +26,13 @@ export class OutputService {
       const { stat } = await import('node:fs/promises');
       await stat(filePath);
       return true;
-    } catch {
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(
+          `Cannot check if file exists "${relativePath}": ${(err as Error).message}. Assuming it does to avoid accidental overwrite.`,
+        );
+        return true;
+      }
       return false;
     }
   }
@@ -53,7 +59,12 @@ export class OutputService {
       const content = await readTextFile(gitignorePath);
       const lines = content.split('\n');
       return lines.some((line) => line.trim() === filename);
-    } catch {
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(
+          `Cannot read .gitignore: ${(err as Error).message}. Suggest adding ai-rules-config.json manually.`,
+        );
+      }
       return false;
     }
   }
