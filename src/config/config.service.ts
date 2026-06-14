@@ -32,6 +32,8 @@ const REQUIRED_FIELDS: ReadonlyArray<keyof Config> = [
   'packages',
   'agents',
   'hasUserprompt',
+  'syncSkills',
+  'skills',
   'lastSync',
 ];
 
@@ -75,7 +77,7 @@ export class ConfigService {
     }
 
     try {
-      return this.validate(parsed);
+      return this.validate(this.applyDefaults(parsed));
     } catch (err) {
       logWarning(
         `Config file has an invalid structure (${(err as Error).message}). A new questionnaire will be started.`,
@@ -140,10 +142,30 @@ export class ConfigService {
       throw new Error('"hasUserprompt" must be a boolean');
     }
 
+    if (typeof obj.syncSkills !== 'boolean') {
+      throw new Error('"syncSkills" must be a boolean');
+    }
+
+    if (!Array.isArray(obj.skills) || !obj.skills.every((s) => typeof s === 'string')) {
+      throw new Error('"skills" must be an array of strings');
+    }
+
     if (typeof obj.lastSync !== 'string') {
       throw new Error('"lastSync" must be a string');
     }
 
     return obj as unknown as Config;
+  }
+
+  /**
+   * Backward compatibility: old configs may not have Phase 2 fields.
+   * Fill in safe defaults so validation passes.
+   */
+  private applyDefaults(data: unknown): Record<string, unknown> {
+    if (typeof data !== 'object' || data === null) return data as Record<string, unknown>;
+    const obj = data as Record<string, unknown>;
+    if (!('syncSkills' in obj)) obj.syncSkills = false;
+    if (!('skills' in obj)) obj.skills = [];
+    return obj;
   }
 }

@@ -16,6 +16,8 @@ const validConfig: Config = {
   packages: ['tailwind', 'typescript'],
   agents: ['claude-code', 'cursor'],
   hasUserprompt: true,
+  syncSkills: true,
+  skills: ['angular-developer'],
   lastSync: '2026-06-14T12:00:00Z',
 };
 
@@ -122,6 +124,30 @@ describe('write', () => {
     await service.write({ ...validConfig, projectName: 'new-name' });
     const result = await service.read();
     expect(result?.projectName).toBe('new-name');
+  });
+});
+
+describe('backward compatibility', () => {
+  it('fills defaults for missing syncSkills and skills', async () => {
+    const oldConfig = {
+      version: 1,
+      projectName: 'old-app',
+      architecture: 'backend',
+      frameworks: ['only-node'],
+      packages: [],
+      agents: [],
+      hasUserprompt: false,
+      lastSync: '2025-01-01T00:00:00Z',
+    };
+    await fs.writeFile(
+      path.join(tmpDir, 'ai-rules-config.json'),
+      JSON.stringify(oldConfig, null, 2),
+      'utf-8',
+    );
+    const result = await service.read();
+    expect(result).not.toBe(null);
+    expect(result!.syncSkills).toBe(false);
+    expect(result!.skills).toEqual([]);
   });
 });
 

@@ -16,6 +16,9 @@ export type Architecture = 'frontend' | 'backend' | 'fullstack';
  * multi-element for fullstack (which allows selecting multiple frameworks).
  * `hasUserprompt` tracks whether a userprompt file was found during the
  * questionnaire — used on re-runs to re-derive the source.
+ *
+ * `syncSkills` and `skills` are Phase 2 fields. Older configs without them
+ * default to `syncSkills: false` and `skills: []` (backward compatible).
  */
 export interface Config {
   version: number;
@@ -25,5 +28,7 @@ export interface Config {
   packages: string[];
   agents: string[];
   hasUserprompt: boolean;
+  syncSkills: boolean;
+  skills: string[];
   lastSync: string;
 }

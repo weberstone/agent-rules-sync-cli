@@ -344,6 +344,8 @@ function buildConfig(answers: Answers, projectName: string): Config {
     packages: answers.packages,
     agents: answers.agents,
     hasUserprompt: answers.hasUserprompt,
+    syncSkills: false,
+    skills: [],
     lastSync: new Date().toISOString(),
   };
 }
