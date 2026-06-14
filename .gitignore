@@ -5,7 +5,9 @@
 
 # ai
 .agents/*
+.docs/*
 CLAUDE.md
+AGENTS.md
 
 # Logs
 logs
