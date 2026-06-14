@@ -106,7 +106,19 @@ export class OrchestratorService {
     const existingConfig = await this.configService.read();
 
     if (existingConfig === null) {
+      if (!process.stdin.isTTY) {
+        logError(
+          'No configuration file found and no interactive terminal available. ' +
+            'Run the script in a terminal for first-time setup, or create an ai-rules-config.json manually.',
+        );
+        return null;
+      }
       return this.promptService.run(this.projectName);
+    }
+
+    // Non-interactive mode: auto-use existing config
+    if (!process.stdin.isTTY) {
+      return this.configToAnswers(existingConfig);
     }
 
     const useExisting = await confirm(
@@ -134,8 +146,13 @@ export class OrchestratorService {
       'userprompt.md',
     );
 
-    const hasProjectWorkflow = await this.discovery.hasProjectOverride(projectName, 'workflow.md');
-    const hasGeneralWorkflow = await this.discovery.isFileNonEmpty(`${arch}/workflow.md`);
+    const hasProjectWorkflow = await this.discovery.hasProjectOverride(
+      projectName,
+      'workflow.md',
+    );
+    const hasGeneralWorkflow = await this.discovery.isFileNonEmpty(
+      `${this.rulesDir}/${arch}/workflow.md`,
+    );
 
     let userpromptSource: 'project' | 'general' | null = null;
     if (config.hasUserprompt) {
