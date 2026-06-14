@@ -1,4 +1,4 @@
-import { select, confirm, isCancel, cancel, outro, note } from '../prompts/clack-adapter.js';
+import { select, confirm, isCancel, cancel, outro, note, spinner } from '../prompts/clack-adapter.js';
 import { ConfigService } from '../config/config.service.js';
 import type { Config } from '../config/config.types.js';
 import { DiscoveryService } from '../discovery/discovery.service.js';
@@ -41,6 +41,8 @@ export class OrchestratorService {
     if (answers === null) return;
 
     // 2. Compile rules
+    const s = spinner();
+    s.start('Compiling rules from templates...');
     const ruleFiles = await this.compiler.compile(answers, this.projectName);
 
     // 3. Write .agents/rules/
@@ -48,6 +50,7 @@ export class OrchestratorService {
 
     // 4. Generate & write agent files
     const ctx = buildGeneratorContext(ruleFiles);
+    const writtenFiles: string[] = [];
     for (const agentKey of answers.agents) {
       const generator = generatorRegistry.get(agentKey);
       if (!generator) continue;
@@ -57,19 +60,19 @@ export class OrchestratorService {
         const mode = await this.resolveWriteMode(file.filename);
         if (mode === 'skip') continue;
         await this.output.writeAgentFile(file.filename, file.content, mode);
+        writtenFiles.push(file.filename);
       }
     }
 
     // 5. Save config
     await this.configService.write(buildConfig(answers, this.projectName));
+    s.stop('Rules generated successfully.');
 
-    // 6. Gitignore suggestion
-    await this.suggestGitignore();
+    // 6. Grand finale
+    this.showFinale(ruleFiles, writtenFiles);
 
-    // 7. Success
-    outro('All rules have been generated successfully.');
-    outro('Files created in .agents/rules/ and agent config files in project root.');
-    note('Add ai-rules-config.json to .gitignore to keep it local.');
+    // 7. Gitignore warning
+    this.showGitignoreWarning();
   }
 
   // ---- Pre-flight ----
@@ -193,14 +196,130 @@ export class OrchestratorService {
     return choice as 'overwrite' | 'append' | 'skip';
   }
 
-  private async suggestGitignore(): Promise<void> {
+  private showFinale(ruleFiles: CompiledFile[], writtenFiles: string[]): void {
+    const pc = this.colors();
+
+    const art = [
+      pc.bold(pc.magenta('        ▄████▄    ')),
+      pc.bold(pc.magenta('    ▄████████▄   ')),
+      pc.bold(pc.magenta('   ███◣▛██▜◢███  ')),
+      pc.bold(pc.magenta('   ███▒████▒███  ')),
+      pc.bold(pc.magenta('    ▀████████▀   ')),
+      pc.bold(pc.magenta('  ▄██▒▒██▒▒██▄  ')),
+      pc.bold(pc.magenta(' ██▀╲╱╲╱╲╱╲╱▀██ ')),
+      pc.bold(pc.magenta(' ▀  ╲  ╲╱  ╱  ▀ ')),
+    ];
+
+    const info = [
+      '  ' + pc.bold(pc.green('✨ Rules synchronized!')),
+      '',
+      '  ' + pc.dim('📁 .agents/rules/ created'),
+      '  ' + pc.dim('⚙️  Agent config files generated'),
+      '  ' + pc.dim('💾 Configuration saved'),
+      '',
+      '  ' + pc.dim('📂 ' + this.projectName),
+      '',
+    ];
+
+    const combined = art.map((line, i) => line + (info[i] ?? ''));
+    outro(combined.join('\n'));
+
+    // File listing in a double-line box — compute width from longest raw name
+    const files: string[] = ruleFiles.map((f) => f.filename);
+    if (writtenFiles.length > 0) files.push(...writtenFiles);
+    const prefix = '    • ';
+    const title = 'Created files:';
+    const innerW = Math.max(
+      title.length,
+      ...files.map((f) => prefix.length + f.length),
+    );
+    const W = innerW + 4;
+
+    const b = { tl: '╔', tr: '╗', bl: '╚', br: '╝', h: '═', v: '║' };
+    const border = pc.bold(pc.green);
+
+    const boxLine = (raw: string, color: 'title' | 'item'): string => {
+      const content =
+        color === 'title'
+          ? pc.bold(pc.green(raw))
+          : pc.cyan(raw);
+      const pad = W - 3 - raw.length;
+      return (
+        border(b.v) +
+        '  ' +
+        content +
+        ' '.repeat(Math.max(0, pad)) +
+        ' ' +
+        border(b.v)
+      );
+    };
+
+    const lines: string[] = [
+      border(b.tl + b.h.repeat(W) + b.tr),
+      boxLine('', 'item'),
+      boxLine(title, 'title'),
+      boxLine('', 'item'),
+      ...files.map((f) => boxLine(prefix + f, 'item')),
+      boxLine('', 'item'),
+      border(b.bl + b.h.repeat(W) + b.br),
+    ];
+
+    outro(lines.join('\n'));
+  }
+
+  private async showGitignoreWarning(): Promise<void> {
+    const pc = this.colors();
     const inGitignore = await this.output.isInGitignore('ai-rules-config.json');
     if (!inGitignore) {
-      note(
-        'IMPORTANT: Add "ai-rules-config.json" to your .gitignore file to keep local configuration private.',
-      );
+      const raw = [
+        ['⚠️  IMPORTANT', true],
+        ['', false],
+        ['Add "ai-rules-config.json"', false],
+        ['to your .gitignore file', false],
+        ['to keep it private.', false],
+      ] as const;
+
+      const innerW = Math.max(36, ...raw.map(([m]) => m.length));
+      const W = innerW + 4;
+
+      const b = { tl: '╔', tr: '╗', bl: '╚', br: '╝', h: '═', v: '║' };
+      const border = pc.bold(pc.yellow);
+
+      const boxLine = (text: string, bold: boolean): string => {
+        const colored = bold
+          ? pc.bold(pc.yellow(text))
+          : pc.yellow(text);
+        const pad = W - 3 - text.length;
+        return (
+          border(b.v) +
+          '  ' +
+          colored +
+          ' '.repeat(Math.max(0, pad)) +
+          ' ' +
+          border(b.v)
+        );
+      };
+
+      const lines: string[] = [
+        border(b.tl + b.h.repeat(W) + b.tr),
+        ...raw.map(([m, bold]) => boxLine(m, bold)),
+        border(b.bl + b.h.repeat(W) + b.br),
+      ];
+      note(lines.join('\n'));
     }
   }
+
+  private colors() {
+    return {
+      dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
+      cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
+      green: (s: string) => `\x1b[32m${s}\x1b[39m`,
+      magenta: (s: string) => `\x1b[35m${s}\x1b[39m`,
+      yellow: (s: string) => `\x1b[33m${s}\x1b[39m`,
+      bold: (s: string) => `\x1b[1m${s}\x1b[22m`,
+    };
+  }
+
 }
 
 // ---- Helpers ----

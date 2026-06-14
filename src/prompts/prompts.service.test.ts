@@ -10,6 +10,7 @@ vi.mock('@clack/prompts', () => ({
   confirm: vi.fn(),
   select: vi.fn(),
   multiselect: vi.fn(),
+  spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
   isCancel: vi.fn((value: unknown) => value === CANCEL),
 }));
 
@@ -24,6 +25,7 @@ const mockClack = mockClackRaw as unknown as {
   confirm: ReturnType<typeof vi.fn>;
   select: ReturnType<typeof vi.fn>;
   multiselect: ReturnType<typeof vi.fn>;
+  spinner: ReturnType<typeof vi.fn>;
   isCancel: ReturnType<typeof vi.fn>;
 };
 

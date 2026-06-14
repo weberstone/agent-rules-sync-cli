@@ -9,7 +9,7 @@ import * as p from '@clack/prompts';
  * boundary explicit and type-safe.
  */
 
-export const { intro, outro, cancel, note, isCancel } = p;
+export const { intro, outro, cancel, note, isCancel, spinner } = p;
 
 export function confirm(message: string): Promise<boolean | symbol> {
   return p.confirm({ message });
