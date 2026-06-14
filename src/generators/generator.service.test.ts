@@ -116,10 +116,14 @@ describe('generateGeminiMd', () => {
     expect(files[0].filename).toBe('GEMINI.md');
   });
 
-  it('uses @import-style directives', () => {
+  it('uses @import directives with priority annotations', () => {
     const { content } = generateGeminiMd(fullContext)[0];
-    expect(content).toContain('@.agents/rules/userprompt.md');
-    expect(content).toContain('@.agents/rules/workflow.md');
+    expect(content).toContain(
+      '@.agents/rules/userprompt.md  (P1 — AI persona and role definition)',
+    );
+    expect(content).toContain(
+      '@.agents/rules/workflow.md  (P2 — Interaction protocol, TDD rules, commit standards)',
+    );
   });
 
   it('skips missing files', () => {

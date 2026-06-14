@@ -68,30 +68,51 @@ describe('fileExists', () => {
 });
 
 describe('writeAgentFile', () => {
-  it('creates new file in create mode', async () => {
+  it('creates new file wrapped in SYNC markers (create mode)', async () => {
     await service.writeAgentFile('CLAUDE.md', '# Claude Rules', 'create');
 
     const content = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
-    expect(content).toBe('# Claude Rules');
+    expect(content).toContain('<!-- AGENT-CONTEXT-SYNC-CLI:RULES:START -->');
+    expect(content).toContain('# Claude Rules');
+    expect(content).toContain('<!-- AGENT-CONTEXT-SYNC-CLI:RULES:END -->');
   });
 
-  it('replaces file in overwrite mode', async () => {
+  it('replaces file with wrapped content in overwrite mode', async () => {
     await fs.writeFile(path.join(tmpDir, 'CLAUDE.md'), 'old content', 'utf-8');
     await service.writeAgentFile('CLAUDE.md', '# New Rules', 'overwrite');
 
     const content = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
-    expect(content).toBe('# New Rules');
+    expect(content).toContain('# New Rules');
+    expect(content).toContain('RULES:START');
+    expect(content).not.toContain('old content');
   });
 
-  it('prepends content in append mode', async () => {
-    await fs.writeFile(path.join(tmpDir, 'CLAUDE.md'), 'Existing content.', 'utf-8');
-    await service.writeAgentFile('CLAUDE.md', '# New Rules', 'append');
+  it('replaces inside markers in update mode when markers exist', async () => {
+    await service.writeAgentFile('CLAUDE.md', '# Initial Rules', 'create');
+    // Write user content after the wrapper
+    const filePath = path.join(tmpDir, 'CLAUDE.md');
+    const existing = await fs.readFile(filePath, 'utf-8');
+    await fs.writeFile(filePath, existing + '\nUser additions below.\n');
+
+    await service.writeAgentFile('CLAUDE.md', '# Updated Rules', 'update');
+
+    const content = await fs.readFile(filePath, 'utf-8');
+    expect(content).toContain('# Updated Rules');
+    expect(content).not.toContain('# Initial Rules');
+    expect(content).toContain('User additions below.');
+    expect(content).toContain('RULES:START');
+    expect(content).toContain('RULES:END');
+  });
+
+  it('prepends wrapped content in update mode when no markers exist', async () => {
+    await fs.writeFile(path.join(tmpDir, 'CLAUDE.md'), 'User content.', 'utf-8');
+    await service.writeAgentFile('CLAUDE.md', '# New Rules', 'update');
 
     const content = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
+    expect(content).toContain('RULES:START');
     expect(content).toContain('# New Rules');
-    expect(content).toContain('Existing content.');
-    // New content should come first
-    expect(content.indexOf('# New Rules')).toBeLessThan(content.indexOf('Existing'));
+    expect(content).toContain('RULES:END');
+    expect(content).toContain('User content.');
   });
 
   it('creates parent directories for nested paths', async () => {
@@ -101,7 +122,27 @@ describe('writeAgentFile', () => {
       path.join(tmpDir, '.cursor', 'rules', '00-agent-rules.mdc'),
       'utf-8',
     );
-    expect(content).toBe('# Rules');
+    expect(content).toContain('# Rules');
+    expect(content).toContain('RULES:START');
+  });
+});
+
+describe('hasSyncMarkersInFile', () => {
+  it('returns false for non-existent file', async () => {
+    const result = await service.hasSyncMarkersInFile('nonexistent.md');
+    expect(result).toBe(false);
+  });
+
+  it('returns true when file has SYNC markers', async () => {
+    await service.writeAgentFile('test.md', '# content', 'create');
+    const result = await service.hasSyncMarkersInFile('test.md');
+    expect(result).toBe(true);
+  });
+
+  it('returns false when file has no SYNC markers', async () => {
+    await fs.writeFile(path.join(tmpDir, 'test.md'), 'plain content', 'utf-8');
+    const result = await service.hasSyncMarkersInFile('test.md');
+    expect(result).toBe(false);
   });
 });
 

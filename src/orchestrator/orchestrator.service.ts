@@ -181,19 +181,28 @@ export class OrchestratorService {
 
   private async resolveWriteMode(
     filename: string,
-  ): Promise<'create' | 'overwrite' | 'append' | 'skip'> {
+  ): Promise<'create' | 'overwrite' | 'update' | 'skip'> {
     const exists = await this.output.fileExists(filename);
     if (!exists) return 'create';
 
+    const hasMarkers = await this.output.hasSyncMarkersInFile(filename);
+    if (hasMarkers) return 'update';
+
     const choice = await select(`File "${filename}" already exists. What should be done?`, [
-      { value: 'overwrite', label: 'Overwrite — Replace with generated rules (Recommended)' },
-      { value: 'append', label: 'Append — Keep current content, prepend a link to .agents/rules/' },
+      {
+        value: 'update',
+        label: 'Update rules section — Add AGENT-CONTEXT-SYNC-CLI block (Recommended)',
+      },
+      {
+        value: 'overwrite',
+        label: 'Overwrite — Replace entire file with generated rules',
+      },
       { value: 'skip', label: 'Skip — Do not touch this file' },
     ]);
 
     if (isCancel(choice)) return 'skip';
 
-    return choice as 'overwrite' | 'append' | 'skip';
+    return choice as 'update' | 'overwrite' | 'skip';
   }
 
   private hr(color: (s: string) => string): string {

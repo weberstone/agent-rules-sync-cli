@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { writeTextFile, ensureDir, readTextFile, isEnoent } from '../utils/fs.js';
 import { logWarning } from '../utils/log.js';
 import type { CompiledFile } from '../compiler/compiler.types.js';
+import { wrapRules, updateRules, hasSyncMarkers } from './content-wrapper.js';
 
 const RULES_DIR = '.agents/rules';
 
@@ -37,17 +38,29 @@ export class OutputService {
     }
   }
 
+  async hasSyncMarkersInFile(relativePath: string): Promise<boolean> {
+    const filePath = path.join(this.targetDir, relativePath);
+    try {
+      const content = await readTextFile(filePath);
+      return hasSyncMarkers(content);
+    } catch {
+      return false;
+    }
+  }
+
   async writeAgentFile(
     relativePath: string,
     content: string,
-    mode: 'create' | 'overwrite' | 'append',
+    mode: 'create' | 'overwrite' | 'update',
   ): Promise<void> {
     const filePath = path.join(this.targetDir, relativePath);
     await ensureDir(path.dirname(filePath));
 
-    if (mode === 'append') {
+    if (mode === 'update') {
       const existing = await readTextFile(filePath);
-      content = `${content}\n\n---\n\n${existing}`;
+      content = updateRules(existing, content);
+    } else {
+      content = wrapRules(content);
     }
 
     await writeTextFile(filePath, content);

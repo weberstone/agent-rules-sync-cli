@@ -133,22 +133,14 @@ function generateGeminiMd(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
 
   const imports = rows
-    .map(
-      (r) =>
-        `- **Priority ${r.priority.split(' ')[0]}**: @.agents/rules/${r.file} — ${r.description}`,
-    )
+    .map((r) => `@.agents/rules/${r.file}  (P${r.priority.split(' ')[0]} — ${r.description})`)
     .join('\n');
 
   const content =
     `# GEMINI.md\n\n` +
     `This project uses a centralized AI rule management system.\n` +
     `All instructions live in \`.agents/rules/\`. Load these files in priority order:\n\n` +
-    `## Rule Manifest & Priority\n\n` +
-    `${imports}\n\n` +
-    `## Usage\n` +
-    `- Always read the priority list above before any task.\n` +
-    `- If a local rule exists, it overrides any general knowledge or defaults.\n` +
-    `- Do not suggest changes that deviate from the project structure.\n` +
+    `${imports}\n` +
     footer();
 
   return [{ filename: 'GEMINI.md', content }];
