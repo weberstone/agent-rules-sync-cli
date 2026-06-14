@@ -67,7 +67,7 @@ export class OrchestratorService {
     if (!(await this.preflightRulesDir())) return;
     if (!(await this.preflightWriteAccess())) return;
 
-    intro('agent-rules-sync-cli');
+    if (process.stdin.isTTY) intro('agent-rules-sync-cli');
 
     // 1. Config discovery
     const configAnswers = await this.resolveConfig();
@@ -80,7 +80,13 @@ export class OrchestratorService {
     let ruleFiles: CompiledFile[] = [];
     const syncRules = await this.askSyncRules();
     if (syncRules) {
-      const rulesAnswers = await this.promptService.run(this.projectName);
+      let rulesAnswers: Answers | null;
+      if (configAnswers.architecture) {
+        // Using existing config — skip questionnaire
+        rulesAnswers = configAnswers as unknown as Answers;
+      } else {
+        rulesAnswers = await this.promptService.run(this.projectName);
+      }
       if (rulesAnswers === null) return;
 
       // Resolve project-vs-general name conflicts before compiling
@@ -121,8 +127,14 @@ export class OrchestratorService {
     }
 
     // 5. Agent selection (always, at the end)
-    const agents = await this.stepAgentSelection();
-    if (agents === null) return;
+    let agents: string[];
+    if (!process.stdin.isTTY && Array.isArray(configAnswers.agents)) {
+      agents = configAnswers.agents as string[];
+    } else {
+      const result = await this.stepAgentSelection();
+      if (result === null) return;
+      agents = result;
+    }
     configAnswers.agents = agents;
 
     // 6. Generate & write agent files
@@ -144,11 +156,16 @@ export class OrchestratorService {
     // 7. Save config
     await this.configService.write(buildConfig(configAnswers, this.projectName));
 
-    // 8. Grand finale
-    this.showFinale(ruleFiles, writtenFiles, copiedSkills);
-
-    // 9. Gitignore warning
-    this.showGitignoreWarning();
+    // 8. Grand finale (TTY only — non-TTY gets plain output)
+    if (process.stdin.isTTY) {
+      this.showFinale(ruleFiles, writtenFiles, copiedSkills);
+      this.showGitignoreWarning();
+    } else {
+      console.log('Rules synchronized successfully.');
+      if (ruleFiles.length > 0) console.log(`.agents/rules/: ${ruleFiles.length} files`);
+      if (copiedSkills.length > 0) console.log(`.agents/skills/: ${copiedSkills.length} skills`);
+      if (writtenFiles.length > 0) console.log(`Agent configs: ${writtenFiles.join(', ')}`);
+    }
   }
 
   // ---- Pre-flight ----
@@ -257,6 +274,10 @@ export class OrchestratorService {
   // ---- Rules / Skills sync prompts ----
 
   private async askSyncRules(): Promise<boolean> {
+    if (!process.stdin.isTTY) {
+      // In non-TTY mode, sync rules if the config has architecture data
+      return true;
+    }
     const proceed = await confirm({
       message: 'Sync rules for this project?',
     });
@@ -264,6 +285,11 @@ export class OrchestratorService {
   }
 
   private async askSyncSkills(): Promise<boolean> {
+    if (!process.stdin.isTTY) {
+      // In non-TTY mode, sync skills only if config says so
+      const config = await this.configService.read();
+      return config?.syncSkills === true;
+    }
     const proceed = await confirm({
       message: 'Sync skills for this project?',
     });
