@@ -362,10 +362,7 @@ export class OrchestratorService {
         ],
       });
       if (!isCancel(choice)) {
-        // Architecture doesn't have a source field in Answers — just use the choice in compilation.
-        // The compiler uses ?? which prefers project. We need to override that behavior.
-        // Store the preference temporarily so the compiler can use it.
-        (rulesAnswers as unknown as Record<string, unknown>)._archSource = choice;
+        rulesAnswers.architectureSource = choice as 'project' | 'general';
       }
     }
 

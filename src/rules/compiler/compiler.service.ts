@@ -64,14 +64,21 @@ export class CompilerService {
     return { filename: 'spec.md', content };
   }
 
-  /** Architecture: project override → general template. Uses `??` for short-circuit. */
+  /**
+   * Architecture: project override → general template.
+   * Uses `??` for short-circuit. If the user explicitly chose 'general'
+   * in a conflict dialog, skip the project override.
+   */
   private async compileArchitecture(
     answers: Answers,
     projectName: string,
   ): Promise<CompiledFile | null> {
+    const preferGeneral = answers.architectureSource === 'general';
+    const projectContent = preferGeneral
+      ? null
+      : await this.discovery.getProjectOverride(projectName, 'architecture.md');
     const content =
-      (await this.discovery.getProjectOverride(projectName, 'architecture.md')) ??
-      (await this.discovery.getArchFile(answers.architecture, 'architecture.md'));
+      projectContent ?? (await this.discovery.getArchFile(answers.architecture, 'architecture.md'));
 
     if (content === null) return null;
 
@@ -116,7 +123,7 @@ export class CompilerService {
 
     if (parts.length === 0) return null;
 
-    const content = [PACKAGE_RULES_HEADER, '', ...parts].join('\n\n') + '\n';
+    const content = [PACKAGE_RULES_HEADER, ...parts].join('\n\n') + '\n';
     return { filename: 'package-rules.md', content };
   }
 

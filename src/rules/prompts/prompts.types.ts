@@ -35,6 +35,7 @@ export interface Answers {
   architecture: Architecture;
   hasUserprompt: boolean;
   userpromptSource: 'project' | 'general' | null;
+  architectureSource?: 'project' | 'general';
   frameworks: string[];
   packages: string[];
   workflowSource: 'project' | 'general' | null;

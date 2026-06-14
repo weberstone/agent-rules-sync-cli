@@ -89,7 +89,7 @@ describe('run', () => {
     expect(answers!.frameworks).toEqual(['angular-guidelines']);
     expect(answers!.packages).toEqual(['tailwind', 'typescript']);
     expect(answers!.workflowSource).toBe('general');
-    expect(answers!.agents).toEqual(['claude-code', 'cursor']);
+    expect(answers!.agents).toEqual([]);
   });
 
   it('returns null when user cancels at spec step', async () => {

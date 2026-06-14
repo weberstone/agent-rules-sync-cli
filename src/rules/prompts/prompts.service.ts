@@ -14,8 +14,6 @@ import { intro, outro, cancel, isCancel, confirm, select, multiselect } from './
 import type { Architecture } from '../config/config.types.js';
 import type { DiscoveryService } from '../discovery/discovery.service.js';
 import type { Answers } from './prompts.types.js';
-import { AVAILABLE_AGENTS } from './prompts.types.js';
-
 const ARCH_LABELS: Record<Architecture, string> = {
   frontend: 'Frontend',
   backend: 'Backend',
@@ -64,9 +62,6 @@ export class PromptService {
     const workflowSource = await this.stepWorkflow(architecture, projectName);
     if (workflowSource === null) return null;
 
-    const agents = await this.stepAgents();
-    if (agents === null) return null;
-
     outro('✨ Configuration complete!');
 
     return {
@@ -76,7 +71,7 @@ export class PromptService {
       frameworks,
       packages,
       workflowSource,
-      agents,
+      agents: [],
     };
   }
 
@@ -301,28 +296,5 @@ export class PromptService {
     }
 
     return null;
-  }
-
-  // ---- Step 7: Agent selection ----
-
-  /** Select which AI agents to generate config files for. Nothing selected is valid. */
-  private async stepAgents(): Promise<string[] | null> {
-    const options = AVAILABLE_AGENTS.map((a) => ({
-      value: a.value,
-      label: a.label,
-    }));
-
-    const choices = await multiselect({
-      message: '🤖 Select AI agents to generate config files for:',
-      options,
-      required: false,
-    });
-
-    if (isCancelSignal(choices)) {
-      cancel('🚫 Cancelled by user.');
-      return null;
-    }
-
-    return choices;
   }
 }

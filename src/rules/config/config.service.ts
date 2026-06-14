@@ -4,7 +4,7 @@
  * The config file persists the user's questionnaire answers so that
  * subsequent runs can skip the interactive prompts and regenerate rules
  * directly. Validation is done manually (no schema library) to keep
- * the bundle small — the config has a flat structure with only 8 fields.
+ * the bundle small — the config has a flat structure with only 10 fields.
  *
  * Error recovery: if the file is missing, corrupted, or has an invalid
  * structure, `read()` returns `null` and logs a warning. The orchestrator
@@ -164,8 +164,9 @@ export class ConfigService {
   private applyDefaults(data: unknown): Record<string, unknown> {
     if (typeof data !== 'object' || data === null) return data as Record<string, unknown>;
     const obj = data as Record<string, unknown>;
-    if (!('syncSkills' in obj)) obj.syncSkills = false;
-    if (!('skills' in obj)) obj.skills = [];
-    return obj;
+    const result = { ...obj };
+    if (!('syncSkills' in result)) result.syncSkills = false;
+    if (!('skills' in result)) result.skills = [];
+    return result;
   }
 }
