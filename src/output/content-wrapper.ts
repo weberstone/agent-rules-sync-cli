@@ -24,6 +24,9 @@
 const START_MARKER = '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:START -->';
 const END_MARKER = '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:END -->';
 
+const SKILLS_START = '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->';
+const SKILLS_END = '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->';
+
 /** Wrap content in RULES markers (for new files or full overwrites). */
 export function wrapRules(content: string): string {
   return `${START_MARKER}\n${content}${END_MARKER}\n`;
@@ -102,4 +105,28 @@ function extractFrontmatter(text: string): string {
   if (endIdx === -1) return '';
 
   return text.slice(0, text.indexOf(trimmed) + endIdx + 3);
+}
+
+// ---- Skills markers (Phase 2) ----
+
+/** Wrap content in SKILLS markers. */
+export function wrapSkills(content: string): string {
+  return `${SKILLS_START}\n${content}${SKILLS_END}\n`;
+}
+
+/** Check whether a file already contains SKILLS markers. */
+export function hasSkillsMarkers(fileContent: string): boolean {
+  return fileContent.includes(SKILLS_START) && fileContent.includes(SKILLS_END);
+}
+
+/**
+ * Update the skills section in an existing file.
+ * Same logic as updateRules: replace between markers if found,
+ * otherwise append a new wrapped block at the end.
+ */
+export function updateSkills(existing: string, newContent: string): string {
+  if (hasSkillsMarkers(existing)) {
+    return replaceBetween(existing, SKILLS_START, SKILLS_END, newContent);
+  }
+  return existing.trimEnd() + '\n\n' + wrapSkills(newContent);
 }
