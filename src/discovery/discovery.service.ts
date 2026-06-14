@@ -75,6 +75,14 @@ export class DiscoveryService {
     return this.readIfNonEmpty(filePath);
   }
 
+  async getArchFile(
+    arch: Architecture,
+    filename: string,
+  ): Promise<string | null> {
+    const filePath = path.join(this.rulesDir, arch, filename);
+    return this.readIfNonEmpty(filePath);
+  }
+
   async isFileNonEmpty(filePath: string): Promise<boolean> {
     const content = await this.readIfNonEmpty(filePath);
     return content !== null;

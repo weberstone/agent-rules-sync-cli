@@ -25,15 +25,15 @@ function isCancelSignal(value: unknown): value is symbol {
 export class PromptService {
   constructor(private readonly discovery: DiscoveryService) {}
 
-  async run(): Promise<Answers | null> {
+  async run(projectName: string): Promise<Answers | null> {
     intro('agent-rules-sync-cli');
 
-    if (!(await this.stepCheckSpec())) return null;
+    if (!(await this.stepCheckSpec(projectName))) return null;
 
     const architecture = await this.stepArchitecture();
     if (architecture === null) return null;
 
-    const userpromptResult = await this.stepUserprompt(architecture);
+    const userpromptResult = await this.stepUserprompt(architecture, projectName);
     if (userpromptResult === null) return null;
     const { hasUserprompt, userpromptSource } = userpromptResult;
 
@@ -43,7 +43,7 @@ export class PromptService {
     const packages = await this.stepPackages(architecture);
     if (packages === null) return null;
 
-    const workflowSource = await this.stepWorkflow(architecture);
+    const workflowSource = await this.stepWorkflow(architecture, projectName);
     if (workflowSource === null) return null;
 
     const agents = await this.stepAgents();
@@ -64,8 +64,7 @@ export class PromptService {
 
   // ---- Step 2 ----
 
-  private async stepCheckSpec(): Promise<boolean> {
-    const projectName = await this.getProjectName();
+  private async stepCheckSpec(projectName: string): Promise<boolean> {
     const hasSpec = await this.discovery.hasProjectOverride(
       projectName,
       'spec.md',
@@ -118,11 +117,13 @@ export class PromptService {
 
   // ---- Step 3b ----
 
-  private async stepUserprompt(architecture: Architecture): Promise<{
+  private async stepUserprompt(
+    architecture: Architecture,
+    projectName: string,
+  ): Promise<{
     hasUserprompt: boolean;
     userpromptSource: 'project' | 'general' | null;
   } | null> {
-    const projectName = await this.getProjectName();
     const hasProject = await this.discovery.hasProjectOverride(
       projectName,
       'userprompt.md',
@@ -240,9 +241,8 @@ export class PromptService {
 
   private async stepWorkflow(
     architecture: Architecture,
+    projectName: string,
   ): Promise<'project' | 'general' | null> {
-    const projectName = await this.getProjectName();
-
     const hasProject = await this.discovery.hasProjectOverride(
       projectName,
       'workflow.md',
@@ -287,12 +287,5 @@ export class PromptService {
     }
 
     return choices;
-  }
-
-  // ---- Helpers ----
-
-  private async getProjectName(): Promise<string> {
-    const { getProjectName } = await import('../utils/paths.js');
-    return getProjectName();
   }
 }

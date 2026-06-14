@@ -144,23 +144,23 @@
 **Цель:** На основе `Answers` собрать содержимое для `.agents/rules/`.
 
 **Задачи:**
-- [ ] `compileUserprompt(answers): Promise<CompiledFile | null>` — проектное или `rules/<arch>/userprompt.md`. Если нет → `null` (файл не создаётся, агенты не линкуют)
-- [ ] `compileSpec(answers): Promise<CompiledFile | null>` — проектное переопределение. Если нет → `null` (не ошибка)
-- [ ] `compileArchitecture(answers): Promise<CompiledFile>` — проектное или `rules/<arch>/architecture.md`
-- [ ] `compileFrameworks(answers): Promise<CompiledFile[]>` — для каждого выбранного фреймворка читает `rules/<arch>/frameworks/<name>.md`. Имя выходного файла = имя исходного. Для frontend/backend — 1 файл, для fullstack — N файлов
-- [ ] `compileWorkflow(answers): Promise<CompiledFile>` — проектное или `rules/<arch>/workflow.md`
-- [ ] `compilePackageRules(answers): Promise<CompiledFile | null>` — если выбраны пакеты: `# Code Style & Tools` + конкатенация. Если ничего не выбрано → `null`
-- [ ] `compileAll(answers): Promise<CompiledFile[]>` — агрегирует всё (исключая `null`)
+- [x] `compileUserprompt(answers, projectName): Promise<CompiledFile | null>` — проектное или `rules/<arch>/userprompt.md`. Если `hasUserprompt=false` → `null`
+- [x] `compileSpec(projectName): Promise<CompiledFile | null>` — только проектное переопределение. Если нет → `null`
+- [x] `compileArchitecture(answers, projectName): Promise<CompiledFile | null>` — проектное или `rules/<arch>/architecture.md`, через `??`
+- [x] `compileFrameworks(answers): Promise<CompiledFile[]>` — для каждого в `answers.frameworks` читает `rules/<arch>/frameworks/<name>.md`
+- [x] `compileWorkflow(answers, projectName): Promise<CompiledFile | null>` — проектное или общее, по `answers.workflowSource`
+- [x] `compilePackageRules(answers): Promise<CompiledFile | null>` — если `packages` не пуст: `# Code Style & Tools` + конкатенация. Пусто → `null`
+- [x] `compile(answers, projectName): Promise<CompiledFile[]>` — агрегация в порядке приоритета, `null` фильтруются
 
 **Зависимости:** Этап 4.
 
 **Definition of Done:**
-- `compileUserprompt` → `null` при отсутствии userprompt.md (и проектного, и общего)
-- `compileSpec` → `null` при отсутствии проектного spec.md
-- `compileFrameworks` → 1 файл для frontend/backend, N файлов для fullstack
-- `compilePackageRules` → `null` при пустом `answers.packages`
-- `compilePackageRules` → `# Code Style & Tools\n\n<content1>\n\n<content2>` при выбранных пакетах
-- Имя фреймворк-файла совпадает с именем исходного (не буквальное `frameworkname.md`)
+- [x] `compileUserprompt` → `null` при отсутствии userprompt.md или `hasUserprompt=false`
+- [x] `compileSpec` → `null` при отсутствии проектного spec.md
+- [x] `compileFrameworks` → 1 файл для frontend/backend, N файлов для fullstack
+- [x] `compilePackageRules` → `null` при пустом `answers.packages`
+- [x] `compilePackageRules` → `# Code Style & Tools\n\n<content1>\n\n<content2>`
+- [x] Имя фреймворк-файла = `{name}.md`
 
 ---
 

@@ -13,10 +13,6 @@ vi.mock('@clack/prompts', () => ({
   isCancel: vi.fn((value: unknown) => value === CANCEL),
 }));
 
-vi.mock('../utils/paths.js', () => ({
-  getProjectName: vi.fn(() => 'my-app'),
-}));
-
 import * as mockClackRaw from '@clack/prompts';
 import { PromptService } from './prompts.service.js';
 
@@ -79,7 +75,7 @@ describe('run', () => {
       .mockResolvedValueOnce(['claude-code', 'cursor']); // agents
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers).not.toBe(null);
     expect(answers!.architecture).toBe('frontend');
@@ -99,7 +95,7 @@ describe('run', () => {
     (mockClack.confirm as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers).toBe(null);
     expect(mockClack.cancel).toHaveBeenCalled();
@@ -114,7 +110,7 @@ describe('run', () => {
     (mockClack.select as ReturnType<typeof vi.fn>).mockResolvedValueOnce(CANCEL);
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers).toBe(null);
   });
@@ -142,7 +138,7 @@ describe('run', () => {
       .mockResolvedValueOnce(['claude-code']); // agents
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers!.architecture).toBe('fullstack');
     expect(answers!.frameworks).toEqual(['angular-guidelines', 'only-node']);
@@ -170,7 +166,7 @@ describe('run', () => {
     (mockClack.multiselect as ReturnType<typeof vi.fn>).mockResolvedValueOnce(['cursor']);
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers).not.toBe(null);
     expect(answers!.hasUserprompt).toBe(false);
@@ -197,7 +193,7 @@ describe('run', () => {
     (mockClack.multiselect as ReturnType<typeof vi.fn>).mockResolvedValueOnce(['claude-code']);
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers!.frameworks).toEqual([]);
     expect(answers!.packages).toEqual([]);
@@ -212,7 +208,7 @@ describe('run', () => {
     (mockClack.confirm as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true);
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers).toBe(null);
     expect(mockClack.cancel).toHaveBeenCalled();
@@ -239,7 +235,7 @@ describe('run', () => {
       .mockResolvedValueOnce([]); // agents: none
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers!.agents).toEqual([]);
   });
@@ -262,7 +258,7 @@ describe('run', () => {
       .mockResolvedValueOnce(['claude-code']);
 
     const service = new PromptService(discovery as any);
-    const answers = await service.run();
+    const answers = await service.run('my-app');
 
     expect(answers!.userpromptSource).toBe('project');
     expect(answers!.workflowSource).toBe('project');
