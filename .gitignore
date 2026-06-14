@@ -5,7 +5,7 @@
 
 # ai
 .agents/*
-.docs/*
+docs/*
 CLAUDE.md
 AGENTS.md
 
