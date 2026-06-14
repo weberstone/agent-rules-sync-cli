@@ -2,40 +2,39 @@
 
 ## Overview
 
-`agent-rules-sync-cli` — CLI-инструмент на Node.js/TypeScript. Запускается в корне целевого проекта, проводит интерактивный опрос о технологическом стеке и генерирует файлы правил для AI-агентов.
+`agent-rules-sync-cli` — CLI tool on Node.js/TypeScript. Runs in the target project root, asks interactive questions about the tech stack, and generates AI agent rule files.
 
-### Режимы запуска
+### Execution Modes
 
-| Режим | Команда | Откуда читаются шаблоны |
+| Mode | Command | Template source |
 |---|---|---|
-| Локальный | `node path/to/agent-rules-sync-cli/dist/index.js` | Локальная копия репозитория |
-| Удалённый | `npx github:user/agent-rules-sync-cli` | npm-кэш (npm скачивает пакет временно) |
+| Local | `node path/to/agent-rules-sync-cli/dist/index.js` | Local repo clone |
+| Remote | `npx github:user/agent-rules-sync-cli` | npm cache (downloaded temporarily) |
 
-Шаблоны (`rules/`) включаются в npm-пакет через `"files": ["dist/", "rules/"]`. В обоих режимах скрипт читает шаблоны относительно `import.meta.url`. При удалённом запуске **не происходит** git clone в проект пользователя — npm скачивает пакет в свой кэш, скрипт выполняется, результат пишется в `process.cwd()`.
+Templates (`rules/`) are included in the npm package via `"files": ["dist/", "rules/"]`. In both modes the script reads templates relative to `import.meta.url`. Remote mode does NOT git-clone into the user's project — npm downloads to its cache, the script runs, output goes to `process.cwd()`.
 
-Для приватных репозиториев пользователю нужны SSH-ключи, настроенные с GitHub. Специальной логики в скрипте не требуется — аутентификация на стороне npm/git.
-
-### Принципиальная схема
+### System Diagram
 
 ```
 ┌──────────────────────────────────────┐
-│  agent-rules-sync-cli (пакет)        │
+│  agent-rules-sync-cli (package)      │
 │  ┌────────────┐  ┌────────────────┐  │
 │  │  rules/    │  │  dist/index.js │  │
-│  │  (шаблоны) │  │  (CLI-код)     │  │
+│  │  (templates)│  │  (CLI code)    │  │
 │  └────────────┘  └────────────────┘  │
 └──────────────────┬───────────────────┘
                    │ node / npx
                    ▼
 ┌──────────────────────────────────────┐
-│  Целевой проект ($CWD)               │
+│  Target project ($CWD)               │
 │  ┌──────────────────────────────────┐│
 │  │ .agents/rules/                   ││
-│  │  ├── spec.md                     ││
-│  │  ├── architecture.md             ││
-│  │  ├── workflow.md                 ││
-│  │  ├── <framework>.md              ││
-│  │  └── package-rules.md (опц.)     ││
+│  │  ├── userprompt.md     (P1)      ││
+│  │  ├── workflow.md       (P2)      ││
+│  │  ├── spec.md           (P3)      ││
+│  │  ├── architecture.md   (P4)      ││
+│  │  ├── <framework>.md    (P5)      ││
+│  │  └── package-rules.md  (P6, opt.)││
 │  ├── CLAUDE.md                      ││
 │  ├── AGENTS.md                      ││
 │  ├── .cursorrules                   ││
@@ -47,12 +46,12 @@
 
 ## Core Principles
 
-1. **Zero-config для первого запуска.** Конфиг не найден → опросник.
-2. **Config-driven для повторных.** Конфиг позволяет пропустить опросник.
-3. **Source of Truth на стороне CLI.** Шаблоны живут в пакете `agent-rules-sync-cli`. Целевой проект получает только скомпилированный результат.
-4. **Project overrides.** Пользователь может создать `rules/projects/<name>/` в своём форке с персональными версиями `spec.md`, `architecture.md`, `workflow.md`. Они имеют приоритет над общими шаблонами.
-5. **Минимум зависимостей.** `@clack/prompts` + `picocolors`. Остальное — нативные модули Node.js.
-6. **Single-file bundle.** `tsup` компилирует `src/` в `dist/index.js`.
+1. **Zero-config first run.** No config → questionnaire.
+2. **Config-driven repeat runs.** Config allows skipping the questionnaire.
+3. **Source of Truth on CLI side.** Templates live in the `agent-rules-sync-cli` package. Target project gets only compiled output.
+4. **Project overrides.** User can create `rules/projects/<name>/` in their fork with custom versions of `userprompt.md`, `spec.md`, `architecture.md`, `workflow.md`. These take precedence over general templates.
+5. **Minimum dependencies.** `@clack/prompts` + `picocolors`. Everything else — native Node.js.
+6. **Single-file bundle.** `tsup` compiles `src/` into `dist/index.js`.
 
 ---
 
@@ -61,19 +60,24 @@
 ```
 agent-rules-sync-cli/
 ├── src/
-│   ├── index.ts                  # Точка входа, оркестратор
-│   ├── config.ts                 # Чтение/запись ai-rules-config.json
-│   ├── discovery.ts              # Сканирование rules/
-│   ├── prompts.ts                # Опросник (@clack/prompts)
-│   ├── compiler.ts               # Компиляция выбранных правил
-│   ├── generators/
-│   │   ├── claude.ts             # CLAUDE.md / AGENTS.md
-│   │   ├── cursor.ts             # .cursorrules
-│   │   └── ...                   # Gemini, Codex, Continue
-│   ├── output.ts                 # Запись файлов в целевой проект
-│   └── utils.ts                  # Пути, fs, логирование
-├── rules/                        # Шаблоны (включаются в npm-пакет)
+│   ├── index.ts                  # Entry point, orchestrator
+│   ├── config/
+│   │   ├── config.types.ts       # Config, Architecture types
+│   │   └── config.service.ts     # Read/write/validate config
+│   ├── utils/
+│   │   ├── paths.ts              # Source/target path resolution
+│   │   ├── log.ts                # Colored terminal output
+│   │   └── fs.ts                 # File system helpers
+│   ├── discovery/
+│   │   ├── discovery.types.ts    # TemplateCategory type
+│   │   └── discovery.service.ts  # Scan rules/ directory
+│   ├── prompts/                  # Questionnaire (Stage 5)
+│   ├── compiler/                 # Rules compilation (Stage 6)
+│   ├── generators/               # Agent file generators (Stage 7)
+│   └── output/                   # File writing (Stage 8)
+├── rules/                        # Templates (included in npm package)
 │   ├── frontend/
+│   │   ├── userprompt.md         # AI persona (OPTIONAL but recommended)
 │   │   ├── architecture.md
 │   │   ├── workflow.md
 │   │   ├── frameworks/
@@ -81,15 +85,16 @@ agent-rules-sync-cli/
 │   │   └── packages/
 │   │       └── *.md
 │   ├── backend/
-│   │   └── ... (аналогично frontend)
+│   │   └── ... (same structure)
 │   ├── fullstack/
-│   │   └── ... (аналогично frontend)
-│   └── projects/                 # Проектные переопределения
+│   │   └── ... (same structure)
+│   └── projects/                 # Per-project overrides
 │       └── <project-name>/
+│           ├── userprompt.md     # Optional
 │           ├── spec.md
-│           ├── architecture.md   # Опционально
-│           └── workflow.md       # Опционально
-├── dist/                         # Скомпилированный бандл (не в git)
+│           ├── architecture.md   # Optional
+│           └── workflow.md       # Optional
+├── dist/                         # Compiled bundle (not in git)
 ├── package.json
 ├── tsconfig.json
 ├── tsup.config.ts
@@ -101,45 +106,45 @@ agent-rules-sync-cli/
 ## Data Flow
 
 ```
-Пользователь запускает npx/node
+User runs npx/node
          │
          ▼
   ┌──────────────┐    ┌─────────────────┐
-  │ 1. Config?   │─да─▶ Use existing    │
+  │ 1. Config?   │─yes─▶ Use existing   │
   └──────┬───────┘    │ config?         │
-         │ нет        ├── Yes → skip    │
+         │ no         ├── Yes → skip    │
          ▼            │   questionnaire │
   ┌──────────────┐    └──┬──────┬───────┘
   │ 2. Spec check│       │      │ No → questionnaire
   └──────┬───────┘       │      ▼
-         ▼               │  ┌───────────────┐
-  ┌──────────────┐       │  │ 3. Arch type  │──▶ Frontend
-  │ Questionnaire│       │  └───────────────┘    / Backend
-  │ (steps 3-7)  │       │         │             / Fullstack
+         ▼               │  ┌───────────────────┐
+  ┌──────────────┐       │  │ 3. Architecture   │──▶ Frontend/Backend
+  │ Questionnaire│       │  └───────────────────┘    /Fullstack (dynamic)
+  │ (steps 3-7)  │       │         │
   └──────┬───────┘       │         ▼
-         │               │  ┌───────────────┐
-         ▼               │  │ 4. Framework  │──▶ radio
-  ┌──────────────┐       │  └───────────────┘
+         │               │  ┌───────────────────┐
+         ▼               │  │ 3b. Userprompt    │──▶ project override
+  ┌──────────────┐       │  └───────────────────┘    or general
   │ 8. Compile   │◀──────┘         │
   │    rules     │                 ▼
-  └──────┬───────┘        ┌───────────────┐
-         │                │ 5. Packages   │──▶ multiselect
-         ▼                └───────────────┘
-  ┌──────────────┐                 │
+  └──────┬───────┘        ┌───────────────────┐
+         │                │ 4. Framework      │──▶ frontend/backend: radio
+         ▼                └───────────────────┘    fullstack: multiselect
+  ┌──────────────┐                 │           (own dir only, no mixing)
   │ 9. Generate  │                 ▼
-  │    agent     │        ┌───────────────┐
-  │    files     │        │ 6. Workflow   │──▶ project override
-  └──────┬───────┘        └───────────────┘    or default
+  │    agent     │        ┌───────────────────┐
+  │    files     │        │ 5. Packages       │──▶ multiselect
+  └──────┬───────┘        └───────────────────┘
          │                         │
          ▼                         ▼
-  ┌──────────────┐        ┌───────────────┐
-  │10. Write     │        │ 7. Agents     │──▶ multiselect
-  │    config    │        └───────────────┘
-  └──────┬───────┘
-         ▼
-  ┌──────────────┐
-  │11. Done +    │
-  │   ASCII art  │
+  ┌──────────────┐        ┌───────────────────┐
+  │10. Write     │        │ 6. Workflow       │──▶ project override
+  │    config    │        └───────────────────┘    or default
+  └──────┬───────┘                 │
+         ▼                         ▼
+  ┌──────────────┐        ┌───────────────────┐
+  │11. Done +    │        │ 7. Agents         │──▶ multiselect
+  │   ASCII art  │        └───────────────────┘
   └──────────────┘
 ```
 
@@ -147,99 +152,126 @@ agent-rules-sync-cli/
 
 ## Key Design Decisions
 
-### 1. Разделение source и target путей
+### 1. Source vs Target Paths
 
 ```
-Source (шаблоны):  path.dirname(fileURLToPath(import.meta.url)) + '/rules/'
-Target (вывод):    process.cwd()
+Source (templates):  path.dirname(fileURLToPath(import.meta.url)) + '/rules/'
+Target (output):     process.cwd()
 ```
 
-Критично: при `npx` пакет скачивается в кэш npm, и шаблоны читаются оттуда. Вывод — всегда `process.cwd()`.
-
-### 2. Определение имени проекта
+### 2. Project Name Detection
 
 ```ts
 const projectName = path.basename(process.cwd());
 ```
 
-### 3. Приоритет правил (от высшего к низшему)
+### 3. Priority: Project Override → General Template → Skip
 
-Для `spec.md`, `architecture.md`, `workflow.md`:
-1. `rules/projects/<projectName>/<file>.md` (если существует и не пуст)
-2. `rules/<arch>/<file>.md` (общий шаблон)
-3. Пропуск с предупреждением
+For `userprompt.md`, `architecture.md`, `workflow.md`:
+1. `rules/projects/<projectName>/<file>.md` (if exists and non-empty)
+2. `rules/<arch>/<file>.md` (general template)
+3. Skip with warning
 
-### 4. Конфигурационный файл
+For `spec.md`: only from project override. If absent → skip (no warning, normal).
 
-Формат: JSON. Имя: `ai-rules-config.json`. Расположение: `process.cwd()`.
+### 4. Config File
+
+Format: JSON. Name: `ai-rules-config.json`. Location: `process.cwd()`.
 
 ```json
 {
   "version": 1,
   "projectName": "my-app",
-  "architecture": "frontend",
-  "framework": "angular-guidelines",
+  "architecture": "fullstack",
+  "frameworks": ["angular-guidelines", "only-node"],
   "packages": ["tailwind", "typescript"],
   "agents": ["claude-code", "cursor"],
+  "hasUserprompt": true,
   "lastSync": "2026-06-14T12:00:00Z"
 }
 ```
 
-Плоская структура, все поля обязательны кроме `packages` (может быть пустым массивом).
+- `frameworks`: always an array. Single-element for frontend/backend, multi-element for fullstack.
+- `hasUserprompt`: whether userprompt.md was found and included.
+- `packages`: empty array if nothing selected.
 
-### 5. Компиляция package-rules.md
+### 5. Compiling package-rules.md
 
-Конкатенация выбранных файлов с общим заголовком:
+Concatenation with a header:
 
 ```md
 # Code Style & Tools
 
-<содержимое первого выбранного файла>
+<content of first selected file>
 
-<содержимое второго выбранного файла>
+<content of second selected file>
 ```
 
-Если пользователь не выбрал ни одного пакета — файл не создаётся, и ссылка на него в агентских файлах отсутствует.
+If nothing selected → file not created, no link in agent files.
 
-### 6. Bundling стратегия
+### 6. Bundling Strategy
 
-`tsup` компилирует `src/` в `dist/index.js`. `rules/` **не бандлятся** — они читаются во время выполнения. `package.json` включает и то, и другое: `"files": ["dist/", "rules/"]`.
+`tsup` compiles `src/` → `dist/index.js`. `rules/` is NOT bundled — read at runtime. Both included in npm package: `"files": ["dist/", "rules/"]`.
 
-### 7. Именование выходных файлов
+### 7. Output Files
 
-| Выходной файл | Источник |
+| Output file | Source |
 |---|---|
-| `spec.md` | `rules/projects/<name>/spec.md` (если есть), иначе пропуск |
-| `architecture.md` | Проектный или `rules/<arch>/architecture.md` |
-| `workflow.md` | Проектный или `rules/<arch>/workflow.md` |
-| `<framework>.md` | Выбранный файл из `rules/<arch>/frameworks/`, имя сохраняется |
-| `package-rules.md` | Компиляция из выбранных `rules/<arch>/packages/*.md` |
+| `userprompt.md` | Project override or `rules/<arch>/userprompt.md`. Skip if both absent. |
+| `spec.md` | `rules/projects/<name>/spec.md` only. Skip if absent. |
+| `architecture.md` | Project override or `rules/<arch>/architecture.md` |
+| `workflow.md` | Project override or `rules/<arch>/workflow.md` |
+| `<framework>.md` | Selected file(s) from `rules/<arch>/frameworks/`. Original filename preserved. Single for frontend/backend, multiple for fullstack. |
+| `package-rules.md` | Compilation from selected `rules/<arch>/packages/*.md`. Optional. |
 
-### 8. Fullstack-архитектура
+### 8. Fullstack Architecture
 
-При выборе Fullstack скрипт работает с `rules/fullstack/`. Структура директории идентична frontend/backend. Никакой специальной логики слияния frontend+backend не требуется — fullstack-правила пишутся пользователем самостоятельно как отдельный набор.
+- Directory: `rules/fullstack/` — same structure as frontend/backend.
+- Framework selection: **multiselect** from `rules/fullstack/frameworks/` ONLY. Does NOT pull from frontend/backend directories.
+- No merging logic — fullstack rules are written by the user as a self-contained set.
+- Shown in questionnaire only if `rules/fullstack/` directory exists (dynamic via `getAvailableArchitectures()`).
+
+### 9. Userprompt — Separate Persona File
+
+- Persona extracted from framework files into `rules/<arch>/userprompt.md`.
+- Framework files now contain only technical rules — no persona.
+- Userprompt gets **Priority 1 (CRITICAL)** in agent config files.
+- If `userprompt.md` is not found (neither project nor general), the questionnaire warns but allows continuing. No `userprompt.md` is generated in output, and no link appears in agent files.
+
+---
+
+## Priority Order in Agent Config Files
+
+| Priority | File | Description |
+|----------|------|-------------|
+| 1 (CRITICAL) | `.agents/rules/userprompt.md` | AI persona and role definition |
+| 2 | `.agents/rules/workflow.md` | Interaction protocol, execution rules |
+| 3 | `.agents/rules/spec.md` | Project-specific stack and structure |
+| 4 | `.agents/rules/architecture.md` | Architectural principles and constraints |
+| 5 | `.agents/rules/<framework>.md` | Framework-specific tech rules |
+| 6 (OPTIONAL) | `.agents/rules/package-rules.md` | Tool/package-specific rules |
 
 ---
 
 ## Module Responsibilities
 
-| Модуль | Ответственность |
+| Module | Responsibility |
 |---|---|
-| `index.ts` | Оркестрация flow. Точка входа. |
-| `config.ts` | Чтение, запись, валидация `ai-rules-config.json`. |
-| `discovery.ts` | Сканирование `rules/` — список frameworks, packages, проверка project overrides. |
-| `prompts.ts` | Интерактивные вопросы через `@clack/prompts`. Без бизнес-логики. |
-| `compiler.ts` | Сборка выходных `.md` файлов: копирование + компиляция package-rules.md. |
-| `generators/*.ts` | Генерация агент-специфичных файлов (CLAUDE.md, .cursorrules, etc.). |
-| `output.ts` | Запись файлов в `process.cwd()`, логика overwrite/append/skip. |
-| `utils.ts` | Path resolution, цветное логирование, fs-хелперы. |
+| `index.ts` | Orchestration. Entry point. |
+| `config/` | Read, write, validate `ai-rules-config.json`. |
+| `utils/` | Path resolution, colored logging, fs helpers. |
+| `discovery/` | Scan `rules/` — available architectures, frameworks, packages, project overrides. |
+| `prompts/` | Interactive questionnaire via `@clack/prompts`. No business logic. |
+| `compiler/` | Assemble output `.md` files: copy + compile package-rules.md. |
+| `generators/` | Generate agent-specific files (CLAUDE.md, .cursorrules, etc.). |
+| `output/` | Write files to `process.cwd()`, overwrite/append/skip logic. |
 
 ---
 
 ## Error Handling Strategy
 
-1. **Pre-flight:** Проверить доступность `rules/` перед началом.
-2. **Graceful degradation:** Файл шаблона не найден/пуст → предупредить, спросить продолжать ли.
-3. **Нет прав на запись:** Понятная ошибка, выход.
-4. **Прерванный опросник (Ctrl+C):** Чистый выход, ничего не создано.
-5. **Ошибка на этапе генерации:** Сообщить пользователю. Частично созданная `.agents/` возможна, но пользователь предупреждён.
+1. **Pre-flight:** Verify `rules/` is accessible before starting.
+2. **Graceful degradation:** Template file not found/empty → warn, ask to continue.
+3. **No write permission:** Clear error, exit.
+4. **Cancelled questionnaire (Ctrl+C):** Clean exit, nothing created.
+5. **Error during generation:** Notify user. Partially created `.agents/` possible, user warned.

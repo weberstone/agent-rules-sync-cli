@@ -15,9 +15,10 @@ const REQUIRED_FIELDS: ReadonlyArray<keyof Config> = [
   'version',
   'projectName',
   'architecture',
-  'framework',
+  'frameworks',
   'packages',
   'agents',
+  'hasUserprompt',
   'lastSync',
 ];
 
@@ -89,8 +90,11 @@ export class ConfigService {
       );
     }
 
-    if (typeof obj.framework !== 'string') {
-      throw new Error('"framework" must be a string');
+    if (
+      !Array.isArray(obj.frameworks) ||
+      !obj.frameworks.every((f) => typeof f === 'string')
+    ) {
+      throw new Error('"frameworks" must be an array of strings');
     }
 
     if (
@@ -105,6 +109,10 @@ export class ConfigService {
       !obj.agents.every((a) => typeof a === 'string')
     ) {
       throw new Error('"agents" must be an array of strings');
+    }
+
+    if (typeof obj.hasUserprompt !== 'boolean') {
+      throw new Error('"hasUserprompt" must be a boolean');
     }
 
     if (typeof obj.lastSync !== 'string') {

@@ -4,8 +4,9 @@ export interface Config {
   version: number;
   projectName: string;
   architecture: Architecture;
-  framework: string;
+  frameworks: string[];
   packages: string[];
   agents: string[];
+  hasUserprompt: boolean;
   lastSync: string;
 }

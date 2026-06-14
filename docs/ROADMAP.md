@@ -57,10 +57,11 @@
     version: number;
     projectName: string;
     architecture: 'frontend' | 'backend' | 'fullstack';
-    framework: string;
+    frameworks: string[];        // always array, 1 for frontend/backend, N for fullstack
     packages: string[];
     agents: string[];
-    lastSync: string; // ISO 8601
+    hasUserprompt: boolean;      // whether userprompt.md was found and included
+    lastSync: string;            // ISO 8601
   }
   ```
 - [x] `readConfig(targetDir): Config | null` — читает и валидирует JSON
@@ -108,14 +109,25 @@
 **Цель:** Полный опросник (шаги 2-7 PRD) через `@clack/prompts`.
 
 **Задачи:**
-- [ ] Шаг 2: Проверка `spec.md` в `rules/projects/<name>/`. Если нет/пуст → вопрос «continue without project spec?»
-- [ ] Шаг 3: Radio-выбор: `Frontend` / `Backend` / `Fullstack`
-- [ ] Шаг 4: Radio-выбор фреймворка из `listFrameworks(arch)`. Пустая папка → warning + continue/cancel
+- [ ] Шаг 2: Проверка `spec.md` в `rules/projects/<name>/`. Если нет/пуст → «Continue without project spec?»
+- [ ] Шаг 3: Radio-выбор архитектуры — динамический список из `getAvailableArchitectures()`
+- [ ] Шаг 3b (NEW): Проверка `userprompt.md` — проектный → общий. Если нет/пуст → warning: «Userprompt file not found. It is highly recommended to create one. Continue without it?»
+- [ ] Шаг 4: Выбор фреймворков. Frontend/Backend → radio. Fullstack → multiselect (из `rules/fullstack/frameworks/` ТОЛЬКО). Пустая папка → warning + continue/cancel
 - [ ] Шаг 5: Multiselect пакетов из `listPackages(arch)`. Пустая папка → warning + continue/cancel
 - [ ] Шаг 6: Информирование об источнике workflow (проектный / общий). Пустой → warning + continue/cancel
 - [ ] Шаг 7: Multiselect AI-агентов (Claude Code, Cursor, Gemini, Codex, Continue, etc.)
 - [ ] Cancel на любом шаге → чистый выход, ничего не создано
 - [ ] Возврат `Answers` — структурированный объект со всеми выборами
+  ```ts
+  interface Answers {
+    architecture: Architecture;
+    userprompt: string | null;       // null если не найден или пользователь пропустил
+    frameworks: string[];            // всегда массив
+    packages: string[];
+    workflowSource: 'project' | 'general';
+    agents: string[];
+  }
+  ```
 
 **Зависимости:** Этап 4.
 
@@ -132,17 +144,20 @@
 **Цель:** На основе `Answers` собрать содержимое для `.agents/rules/`.
 
 **Задачи:**
-- [ ] `compileSpec(answers): Promise<CompiledFile | null>` — проектное переопределение. Если нет → `null` (не ошибка, файл не создаётся)
+- [ ] `compileUserprompt(answers): Promise<CompiledFile | null>` — проектное или `rules/<arch>/userprompt.md`. Если нет → `null` (файл не создаётся, агенты не линкуют)
+- [ ] `compileSpec(answers): Promise<CompiledFile | null>` — проектное переопределение. Если нет → `null` (не ошибка)
 - [ ] `compileArchitecture(answers): Promise<CompiledFile>` — проектное или `rules/<arch>/architecture.md`
-- [ ] `compileFramework(answers): Promise<CompiledFile>` — выбранный файл из `rules/<arch>/frameworks/`. Выходное имя = имя исходного файла (например, `angular-guidelines.md`)
+- [ ] `compileFrameworks(answers): Promise<CompiledFile[]>` — для каждого выбранного фреймворка читает `rules/<arch>/frameworks/<name>.md`. Имя выходного файла = имя исходного. Для frontend/backend — 1 файл, для fullstack — N файлов
 - [ ] `compileWorkflow(answers): Promise<CompiledFile>` — проектное или `rules/<arch>/workflow.md`
-- [ ] `compilePackageRules(answers): Promise<CompiledFile | null>` — если выбраны пакеты: `# Code Style & Tools` + конкатенация содержимого. Если ничего не выбрано → `null`
+- [ ] `compilePackageRules(answers): Promise<CompiledFile | null>` — если выбраны пакеты: `# Code Style & Tools` + конкатенация. Если ничего не выбрано → `null`
 - [ ] `compileAll(answers): Promise<CompiledFile[]>` — агрегирует всё (исключая `null`)
 
 **Зависимости:** Этап 4.
 
 **Definition of Done:**
+- `compileUserprompt` → `null` при отсутствии userprompt.md (и проектного, и общего)
 - `compileSpec` → `null` при отсутствии проектного spec.md
+- `compileFrameworks` → 1 файл для frontend/backend, N файлов для fullstack
 - `compilePackageRules` → `null` при пустом `answers.packages`
 - `compilePackageRules` → `# Code Style & Tools\n\n<content1>\n\n<content2>` при выбранных пакетах
 - Имя фреймворк-файла совпадает с именем исходного (не буквальное `frameworkname.md`)
@@ -155,19 +170,19 @@
 
 **Задачи:**
 - [ ] Тип `AgentGenerator = (context: GeneratorContext) => { filename: string; content: string }`
-  - `GeneratorContext` содержит: `rulesPath`, `frameworkFile`, `hasPackageRules`, `agents` etc.
-- [ ] `generateClaudeMd` — CLAUDE.md с таблицей приоритетов и ссылками на `.agents/rules/`. Ссылка на package-rules.md только если он создан
+  - `GeneratorContext` содержит: `rulesPath`, `hasUserprompt`, `frameworkFiles[]`, `hasPackageRules`, `agents` etc.
+- [ ] `generateClaudeMd` — CLAUDE.md с таблицей приоритетов. userprompt.md на Priority 1 (CRITICAL) если есть. Framework-файлы — по одному на строку для fullstack. package-rules.md — только если создан
 - [ ] `generateAgentsMd` — AGENTS.md (аналогичен CLAUDE.md)
-- [ ] `generateCursorRules` — `.cursorrules` с референсами
+- [ ] `generateCursorRules` — `.cursorrules` с референсами, приоритеты согласно spec
 - [ ] Заглушки для Gemini, Codex, Continue — `TODO: define format`
 - [ ] Реестр: `Map<string, AgentGenerator>` — выбор генератора по ключу
 
 **Зависимости:** Этап 2 (утилиты). Может идти параллельно с Этапами 5-6.
 
 **Definition of Done:**
-- CLAUDE.md генерируется с динамической таблицей (framework-файл назван правильно, package-rules — опционально)
+- CLAUDE.md: userprompt.md на P1 (CRITICAL) если есть. Если нет — строка отсутствует. Framework-файлы динамически. package-rules опционально
 - AGENTS.md структурно идентичен CLAUDE.md
-- `.cursorrules` содержит ссылки в корректном формате
+- `.cursorrules` содержит ссылки с учётом приоритетов
 - Gemini, Codex, Continue — заглушки с TODO
 
 ---

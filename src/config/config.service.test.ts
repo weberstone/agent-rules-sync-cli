@@ -12,9 +12,10 @@ const validConfig: Config = {
   version: 1,
   projectName: 'my-app',
   architecture: 'frontend',
-  framework: 'angular-guidelines',
+  frameworks: ['angular-guidelines'],
   packages: ['tailwind', 'typescript'],
   agents: ['claude-code', 'cursor'],
+  hasUserprompt: true,
   lastSync: '2026-06-14T12:00:00Z',
 };
 
@@ -109,7 +110,7 @@ describe('read', () => {
     expect(result!.version).toBe(validConfig.version);
     expect(result!.projectName).toBe(validConfig.projectName);
     expect(result!.architecture).toBe(validConfig.architecture);
-    expect(result!.framework).toBe(validConfig.framework);
+    expect(result!.frameworks).toEqual(validConfig.frameworks);
     expect(result!.packages).toEqual(validConfig.packages);
     expect(result!.agents).toEqual(validConfig.agents);
   });

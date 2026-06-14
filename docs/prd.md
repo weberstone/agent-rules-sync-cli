@@ -1,154 +1,211 @@
-# Конструктор и централизованное хранилище правил для ИИ-агентов
+# Centralized AI Agent Rules Manager — CLI Tool
 
-**Боль:** Поддержка правил для разных проектов в актуальном и едином виде.
+**Problem:** Maintaining up-to-date, consistent AI agent rules across multiple projects.
 
-**Решение:** Централизованное хранилище и конструктор общих пользовательских правил, а также индивидуальных правил под каждый проект, находящийся в разработке.
+**Solution:** A centralized rules repository and interactive CLI generator. Common shared rules plus per-project overrides, generated on demand.
 
-**Преимущества:** * Все в одном месте.
-* Конструктор индивидуальных правил под каждый проект.
-* Быстрая синхронизация и обновление правил одной командой внутри проекта.
-
----
-
-## Как это работает?
-1. Клонируем проект с GitHub.
-2. Внутри конструктора создаются файлы и правила к ним на основе заданной в документации структуры.
-3. Внутри проекта, для которого нужно сгенерировать набор правил, в командной строке выполняется скрипт. Он запускается либо с GitHub (при этом требуется доступ по SSH и заранее сделанный pull request с уже заготовленными правилами), либо указанием пути к локальному расположению скрипта.
-4. В терминале отмечаются используемые в проекте технологии.
-5. Готово.
+**Benefits:**
+- Everything in one place
+- Per-project rule customization
+- Fast sync and update with a single command
 
 ---
 
-## ТЕХНИЧЕСКАЯ РЕАЛИЗАЦИЯ
+## How It Works
 
-**Вводные:** В корне проекта лежит папка `rules`. Она содержит файлы и папки с четко заданной структурой. Файлы содержат части правил, которые в итоге будут собираться в единую базу финальных правил исходя из конфигурации проекта.
-
-В проекте есть папка `rules/projects/example/` (где `example` — это название проекта, из которого запускается скрипт). Перед запуском скрипта пользователь должен заранее создать папку под свой конкретный проект и разместить там файлы правил, соблюдая спецификации по названиям. Это нужно на случай, если пользователю для конкретного проекта не подходит общий файл правил, и он разработал уникальные правила под свой проект. Названия папок проекта обязательно должны совпадать, чтобы скрипт обратился по правильному пути.
-
----
-
-## СТРУКТУРА ПОЛЬЗОВАТЕЛЬСКИХ ПРОМПТОВ
-
-* **`/rules/example/spec.md`** (где `example` — папка с названием проекта, для которого существуют персональные настройки; папка должна быть идентичной по названию с корневой папкой самого проекта, для которого создаются правила) — спецификации и стек проекта в общих чертах. Перечисляются пакеты и их версии, если это требуется для лучшего понимания проекта агентом. Также расписывается структура папок и что в них должно размещаться, чтобы агент знал, куда и в каких случаях распределять создаваемые файлы.
-
-* **`/rules/(frontend | backend)/architecture.md`** — предпочтения по архитектуре проекта, рекомендации для агента (каким паттернам следовать, какие конструкции лучше использовать и т. д.).
-
-* **`/rules/(frontend | backend)/frameworks/frameworkname.md`** (где `frameworkname.md` — файл с описанием специфики по конкретному фреймворку + юзерпромпт) — общие правила работы с конкретным фреймворком. Общие обязательные правила, которые агент должен учитывать еще до того, как обратится к скиллам. Общие рекомендации и лучшие практики. ТАКЖЕ в файле содержится юзерпромпт, который заточен под конкретную технологию и задает вектор движения мысли агента. Учитывая, что тут находится входной PERSON-юзерпромпт, для агента это приоритетный файл.
-
-* **`/rules/(frontend | backend)/packages/packagename.md`** (где `packagename.md` — набор правил и рекомендаций по использованию конкретного пакета или инструмента в проекте) — содержит рекомендации и примеры использования инструмента в проекте. Прописываются ограничения и рекомендации. Название файла должно совпадать по смыслу с названием пакета или инструмента.
-
-* **`/rules/(frontend | backend)/workflow.md`** — второй по приоритетности для агента файл с четким описанием специфики работы с юзером и их взаимодействий. Выполняя любую задачу, агент должен знать содержимое этого файла. Это колоссально важная для юзера информация, и агент должен строго следовать указаниям в этом файле.
+1. User forks/clones the rules repository to customize templates.
+2. Inside the repository, `rules/` contains a structured set of template files.
+3. In the target project, the user runs the CLI script — either locally (`node path/to/dist/index.js`) or remotely (`npx github:user/repo`).
+4. The CLI asks about the project's tech stack interactively.
+5. Final rule files are generated into `.agents/rules/` and agent-specific config files (CLAUDE.md, AGENTS.md, .cursorrules, etc.) are created in the project root.
 
 ---
 
-## ОБРАБОТКА
+## TECHNICAL IMPLEMENTATION
 
-### Шаг 1: Поиск конфигурации
-При выполнении скрипта происходит поиск файла конфига.
-* Если файла с конфигом нет, запускается опросник.
-* Если файл конфига найден (это означает, что происходит обновление правил, а не их создание), в консоль выводится вопрос на английском: *"Найден конфигурационный файл. Обновить правила на его основе или пройти опрос заново?"*
-    * Если пользователь выбирает "заново", переходим к Шагу 2.
-    * Если "использовать существующий конфиг", то опросник пропускается, и правила перезаписываются на основе того, что есть в конфиге.
+**Overview:** The repository contains a `rules/` directory with a defined structure. Template files contain rule fragments that get compiled into a final rule set based on the project's configuration.
 
-### Шаг 2: Проверка спецификаций проекта (`spec.md`)
-Проверяем, есть ли у пользователя в папке проекта `rules/projects/example/` файл `spec.md`.
-* Если он есть и не пустой, переходим к следующему шагу.
-* Если файл отсутствует или пуст, выводим в консоль сообщение на английском языке о том, что у пользователя есть возможность прописать персональные спецификации для проекта. Сообщаем, что он может сделать это в папке `rules/projects/`, создав внутри папку с названием текущего проекта и положив туда файл `spec.md`, заполнив его по примеру. Также спрашиваем, хочет ли пользователь продолжить без спецификаций проекта или отменить скрипт. Если "продолжить", переходим к Шагу 3.
-
-### Шаг 3: Выбор типа архитектуры (Вопрос 1)
-Тип проекта — выбор из: `[Frontend architecture]`, `[Backend architecture]` и `[Fullstack architecture]` (если в репозитории существует папка `rules/fullstack/`). Пункты формируются динамически на основе наличия соответствующих папок в `rules/`.
-
-**ВАЖНО!** Если у пользователя в папке проекта `rules/projects/example/` есть файл `architecture.md`, то берем в работу пользовательские правила именно из этого файла. Если файл отсутствует, следуем правилам ниже:
-* Если отмечено `Frontend architecture`, используется файл `/rules/frontend/architecture.md`.
-* Если отмечено `Backend architecture`, используется файл `/rules/backend/architecture.md`.
-
-*Если в выбранной папке отсутствует файл или он пустой, выводим в консоль сообщение на английском об этом и сразу спрашиваем: продолжить далее или остановить скрипт. Если "продолжить", переходим к следующему вопросу.*
-
-### Шаг 4: Выбор фреймворка
-Исходя из ответа на Шаге 3, смотрим в соответствующую папку и берем ее содержимое:
-* Если выбран `Frontend architecture`, считываем папку `/rules/frontend/frameworks/` и выводим названия файлов для выбора.
-* Если выбран `Backend architecture`, считываем папку `/rules/backend/frameworks/` и выводим названия файлов для выбора.
-
-*Если папка пуста или файлов нет, выводим сообщение на английском, что пользователь может прописать спецификации и best practices относительно используемого фреймворка. Указываем путь для создания персонального файла `/rules/.../frameworks/`. Спрашиваем, продолжить ли без спецификаций или отменить скрипт. При продолжении переходим к Шагу 5.*
-
-### Шаг 5: Выбор пакетов и инструментов
-Исходя из ответа на Шаге 3:
-* Если выбран `Frontend architecture`, считываем папку `/rules/frontend/packages/` и выводим названия файлов для выбора.
-* Если выбран `Backend architecture`, считываем папку `/rules/backend/packages/` и выводим названия файлов для выбора.
-
-Из названий файлов формируется список с возможностью выбрать несколько пунктов. Когда пользователь отмечает нужные, содержимое из каждого выбранного файла компилируется в единый финальный файл `package-rules.md`, который будет сгенерирован для конкретного проекта.
-
-*Обработка пустых файлов/папок аналогична предыдущим шагам (предупреждение на английском -> предложение продолжить/отменить).*
-
-### Шаг 6: Рабочий процесс (`workflow.md`)
-Исходя из ответа на Шаге 3:
-**ВАЖНО!** Если у пользователя в папке проекта `rules/projects/example/` есть файл `workflow.md`, берем правила из него. Иначе:
-* Если `Frontend architecture`, используется `/rules/frontend/workflow.md`.
-* Если `Backend architecture`, используется `/rules/backend/workflow.md`.
-
-*Обработка пустых файлов аналогична предыдущим шагам (предупреждение на английском -> предложение продолжить/отменить).*
-
-### Шаг 7: Создание главных файлов для агентов
-Спрашиваем у юзера, каким агентом он пользуется (Claude Code, ClaudeCLI, Gemini, GeminiCLI, Codex, Continue и пр. — множественный выбор). Для выбранных создается главный файл с правилами и перелинковкой вглубь. В нем должно быть описание содержимого папок, приоритеты и инструкции по использованию. Файл должен строго отвечать спецификациям конкретного агента.
-
-**Проверка существующих файлов (на примере `CLAUDE.md` / `.cursorrules`):**
-* **Если файла нет:** Просто создаем свой идеальный, структурированный файл со ссылками на `.agents/rules/`.
-* **Если файл уже есть:** Выводим в терминал вопрос на английском:
-  > ⚠️ Обнаружен существующий файл CLAUDE.md. Что с ним сделать?
-  > * `[Overwrite]` Полностью перезаписать нашими правилами (Рекомендуется).
-  > * `[Append]` Оставить текущий контент, но добавить в начало ссылку на наши новые правила из `.agents/rules/`.
-  > * `[Skip]` Не трогать этот файл.
-
-### Шаг 8: Завершение и сохранение конфига
-По завершении опросника создается файл конфига с настройками на основе ответов. В консоль выводится сообщение на английском с ASCII-ретро-рисунком Ктулху, где написано, что все файлы успешно созданы (с описанием, что и где), и что сохранен файл конфигурации для быстрого обновления правил в будущем. Крупным шрифтом предлагается добавить файл конфига в `.gitignore`.
+The repository also contains `rules/projects/<project-name>/` — per-project override directories. Before running the CLI, the user can create a folder named after their target project and place custom rule files there, following the same naming conventions. The CLI will prefer these overrides when the project name matches.
 
 ---
 
-## ИТОГОВАЯ СТРУКТУРА НА СТОРОНЕ КЛИЕНТА
+## RULES DIRECTORY STRUCTURE
 
-В проекте должна появиться папка `.agents/rules/`, где будут храниться финальные сгенерированные `.md` файлы:
+### `rules/<arch>/userprompt.md` (NEW — CRITICAL PRIORITY)
+AI persona definition. Describes the AI agent's role, expertise, and mindset for this architecture type. Examples:
+- `rules/frontend/userprompt.md` — "You are a dedicated frontend expert..."
+- `rules/backend/userprompt.md` — "You are a dedicated Node.js backend expert..."
+- `rules/fullstack/userprompt.md` — "You are a fullstack developer..."
 
-* `frameworkname.md` — описание специфики по конкретному фреймворку + юзерпромпт (выбран на Шаге 4).
-* `workflow.md` — специфика работы с юзером (определен на Шаге 6).
-* `package-rules.md` — скомпилированный файл из ряда более мелких файлов (собран на Шаге 5).
-* `architecture.md` — архитектурные предпочтения (выбран на Шаге 3).
-* `spec.md` — общие спецификации (определен на Шаге 2).
+This file is OPTIONAL but highly recommended. If absent, the user is warned and may continue without it — no userprompt.md will be generated in the output. If present, it gets **Priority 1 (CRITICAL)** in agent config files.
 
-Далее в корне проекта создается ряд главных файлов для ИИ-агентов (исходя из их спецификаций), ссылающихся на эту папку.
+**Project override:** `rules/projects/<name>/userprompt.md` takes precedence over the general one.
+
+### `rules/<arch>/workflow.md`
+Interaction protocol between the user and the AI agent. Execution rules, commit standards, TDD requirements, memory management, etc. **Priority 2** in agent config files.
+
+**Project override:** `rules/projects/<name>/workflow.md` takes precedence.
+
+### `rules/<arch>/spec.md` — only via project override
+Project-specific specifications: tech stack, package versions, directory structure conventions. Unlike other files, there is NO general `spec.md` in `rules/<arch>/`. Spec exists ONLY as a project override in `rules/projects/<name>/spec.md`. If absent, the file is simply not generated.
+
+### `rules/<arch>/architecture.md`
+Architecture preferences: SOLID, DDD, Clean Architecture, pattern recommendations, anti-patterns to avoid. **Priority 4** in agent config files.
+
+**Project override:** `rules/projects/<name>/architecture.md` takes precedence.
+
+### `rules/<arch>/frameworks/<framework>.md`
+Framework-specific technical rules and best practices. Does NOT contain persona — persona lives in `userprompt.md`.
+
+**Selection type depends on architecture:**
+- `frontend` or `backend`: **radio** (single choice)
+- `fullstack`: **multiselect** (can choose multiple frameworks from `rules/fullstack/frameworks/` only — does NOT pull from frontend/backend directories)
+
+Output filename matches the source filename (e.g., `angular-guidelines.md`). Multiple framework files for fullstack all get copied to output. **Priority 5** in agent config files.
+
+### `rules/<arch>/packages/<package>.md`
+Tool/package-specific rules: Tailwind, TypeScript, Angular Material, etc. Contains recommendations, usage examples, constraints. Filename should match the package/tool name.
+
+**Selection type:** multiselect. Selected files are compiled into a single `package-rules.md` with a `# Code Style & Tools` header. If nothing is selected, the file is not created and no link appears in agent config files. **Priority 6 (OPTIONAL)** in agent config files.
 
 ---
 
-## ТЕХНИЧЕСКИЙ СТЕК
+## PROCESSING FLOW
 
-### 1. Среда выполнения и язык
-* **Платформа:** Node.js (версия 20+). Использование современной модульной системы ESM (`"type": "module"` в `package.json`), что позволяет использовать нативный `fetch` и верхнеуровневый `await`.
-* **Язык:** TypeScript. Обеспечивает строгую типизацию конфигурационного файла, ответов пользователя и структуры папок. Перед публикацией скрипт компилируется в чистый JavaScript.
+All messages to the user are in **English**.
 
-### 2. Ключевые библиотеки (Зависимости)
-Чтобы скрипт весил мало и запускался через `npx` за 1-2 секунды, количество сторонних библиотек сведено к минимуму:
-* `@clack/prompts` — современная альтернатива Inquirer для построения интерфейсов в терминале (ретро-анимации, удобные чекбоксы для множественного выбора на Шагах 5 и 7, встроенные спиннеры загрузки).
-* `picocolors` — ультралегкая библиотека (альтернатива Chalk) для окрашивания текста в консоли (зеленые статус-логи `[SUCCESS]`, отрисовка ASCII-арта).
-* `tsup` (devDependency) — сборщик, который компилирует весь TypeScript-код генератора и его легковесные зависимости в один минифицированный файл `index.js`. Гарантирует максимальную скорость скачивания и выполнения через `npx`.
+### Step 1: Config Discovery
+Check for an existing `ai-rules-config.json` in the target project root.
 
-### 3. Нативные модули Node.js (Без внешних библиотек)
-Вся работа с диском и сетью пишется на встроенных модулях:
-* `fs/promises` — для асинхронного чтения локальных файлов правил, создания папок `.agents/rules/` и записи итоговых файлов.
-* `path` — для кроссплатформенного разрешения путей (Windows, macOS, Linux).
-* Нативный `fetch` — для скачивания `.md` файлов напрямую из сырых репозиториев GitHub (`raw.githubusercontent.com`), если выбран сетевой режим синхронизации.
+- **No config found** → start the questionnaire (Step 2).
+- **Config found** → ask (in English): *"Existing configuration file found. Use it to regenerate rules, or start a fresh questionnaire?"*
+  - "Use existing" → skip questionnaire, regenerate from config.
+  - "Start fresh" → proceed to Step 2.
+
+### Step 2: Project Spec Check (`spec.md`)
+Check if `rules/projects/<project-name>/spec.md` exists and is non-empty (where `<project-name>` is derived from `path.basename(process.cwd())`).
+
+- **Exists and non-empty** → proceed to Step 3.
+- **Missing or empty** → show a message (in English) explaining the user can create a project-specific spec. Ask: *"Continue without project specifications?"*
+  - "Continue" → proceed to Step 3.
+  - "Cancel" → exit.
+
+### Step 3: Architecture Type Selection
+Dynamically check which architecture directories exist in `rules/` and present them as options (radio):
+
+- `Frontend` (if `rules/frontend/` exists)
+- `Backend` (if `rules/backend/` exists)
+- `Fullstack` (if `rules/fullstack/` exists)
+
+### Step 3b: Userprompt Check (`userprompt.md`) — NEW
+Check for userprompt. Priority: project override → general.
+
+- `rules/projects/<name>/userprompt.md` exists and non-empty → use it.
+- Otherwise, `rules/<arch>/userprompt.md` exists and non-empty → use it.
+- **Missing or empty** → warning (in English): *"Userprompt file not found. It is highly recommended to create one to define the AI persona for this architecture. Continue without it?"*
+  - "Continue" → no `userprompt.md` generated in output, no link in agent files.
+  - "Cancel" → exit.
+
+### Step 4: Framework Selection
+Based on the architecture selected in Step 3:
+
+- **Frontend / Backend:** Read `rules/<arch>/frameworks/`, present as **radio** selection.
+- **Fullstack:** Read `rules/fullstack/frameworks/` ONLY, present as **multiselect**.
+
+If the frameworks directory is empty or missing → warning + ask *"Continue without framework rules?"*
+
+### Step 5: Package Selection
+Based on the architecture selected in Step 3, read `rules/<arch>/packages/` and present as **multiselect**.
+
+If the packages directory is empty or missing → warning + ask *"Continue without package rules?"*
+
+### Step 6: Workflow (`workflow.md`)
+Priority: project override (`rules/projects/<name>/workflow.md`) → general (`rules/<arch>/workflow.md`).
+
+If the selected file is missing or empty → warning + ask *"Continue without workflow rules?"*
+
+### Step 7: AI Agent Selection
+Ask the user which AI agents they use (multiselect): Claude Code, Claude CLI, Gemini, Gemini CLI, Codex, Cursor, Continue, etc. For each selected agent, a corresponding config file is generated in the project root.
+
+**Existing file handling (e.g., CLAUDE.md / .cursorrules):**
+- **No existing file:** Create a new structured file with links to `.agents/rules/`.
+- **Existing file found:** Ask (in English):
+  > ⚠️ Existing file `<filename>` found. What should be done?
+  > `[Overwrite]` Replace with generated rules (Recommended).
+  > `[Append]` Keep current content, prepend a link to `.agents/rules/`.
+  > `[Skip]` Don't touch this file.
+
+### Step 8: Completion & Config Save
+Save `ai-rules-config.json` with the user's answers. Print an ASCII Cthulhu art and a success message listing all created files. Print a large recommendation to add `ai-rules-config.json` to `.gitignore`.
+
+---
+
+## OUTPUT STRUCTURE (TARGET PROJECT)
+
+```
+<project-root>/
+├── .agents/rules/
+│   ├── userprompt.md        # Priority 1 (CRITICAL) — AI persona
+│   ├── workflow.md          # Priority 2 — interaction protocol
+│   ├── spec.md              # Priority 3 — project specifications
+│   ├── architecture.md      # Priority 4 — architecture preferences
+│   ├── <framework>.md       # Priority 5 — framework tech rules (may be multiple for fullstack)
+│   └── package-rules.md     # Priority 6 (OPTIONAL) — compiled tool rules
+├── CLAUDE.md                # Agent config (if Claude Code selected)
+├── AGENTS.md                # Agent config (if Claude Code selected)
+├── .cursorrules             # Agent config (if Cursor selected)
+└── ai-rules-config.json     # Saved questionnaire answers
+```
+
+### Priority Order in Agent Config Files
+
+| Priority | File | Description |
+|----------|------|-------------|
+| 1 (CRITICAL) | `.agents/rules/userprompt.md` | AI persona and role definition |
+| 2 | `.agents/rules/workflow.md` | Interaction protocol, execution rules |
+| 3 | `.agents/rules/spec.md` | Project-specific stack and structure |
+| 4 | `.agents/rules/architecture.md` | Architectural principles and constraints |
+| 5 | `.agents/rules/<framework>.md` | Framework-specific tech rules |
+| 6 (OPTIONAL) | `.agents/rules/package-rules.md` | Tool/package-specific rules |
+
+---
+
+## TECH STACK
+
+### Runtime & Language
+- **Platform:** Node.js v20+. ESM (`"type": "module"`).
+- **Language:** TypeScript with strict type checking. Compiled to JS before distribution.
+
+### Dependencies
+- `@clack/prompts` — interactive terminal UI (animations, radio, multiselect, spinners)
+- `picocolors` — lightweight terminal text coloring
+- `tsup` (dev) — single-file bundler for fast `npx` execution
+
+### Native Node.js Modules
+- `fs/promises` — async file operations
+- `path` — cross-platform path resolution
+- `url` — `fileURLToPath` for ESM path resolution
+
+### Execution Modes
+1. **Local:** `node path/to/agent-rules-sync-cli/dist/index.js` — templates read from local clone
+2. **Remote:** `npx github:user/agent-rules-sync-cli` — package downloaded to npm cache, templates read from cache. No git clone in user project. Private repos require SSH keys configured with GitHub.
+
+### Path Resolution
+- **Source (templates):** Resolved via `import.meta.url` + `fileURLToPath` — relative to the script location
+- **Target (output):** `process.cwd()` — where the user runs the terminal
+- **Project name:** `path.basename(process.cwd())` — used to find overrides in `rules/projects/`
 
 ---
 
 ## FAQ
 
-**Где хранится скрипт?**
-Учитывая наличие репозитория-"сервера" (где генерируется база) и "клиента" (для которого генерируются правила), скрипт будет лежать на стороне "сервера".
+**Where is the script stored?**
+In the same repository as the rules ("server" side). The repo contains both `rules/` (templates) and `src/` (CLI code).
 
-**Как будет вызываться скрипт?**
-Скрипт будет вызываться из консоли на стороне клиента двумя способами:
-1. Локально: `node ../path-to/my-ai-rules/index.js`
-2. Удаленно: `npx github:твой-ник/my-ai-rules`
+**How is the script invoked?**
+Two ways:
+1. Locally: `node ../path-to/agent-rules-sync-cli/dist/index.js`
+2. Remotely: `npx github:user/agent-rules-sync-cli`
 
-*ВАЖНО:* Скрипт должен четко разделять пути. Чтение исходных шаблонов из папки `/rules/...` должно происходить относительно расположения самого скрипта (в ESM использовать `fileURLToPath(import.meta.url)`). А вот запись итоговых файлов (`.agents/rules/` и конфигов) должна происходить строго по пути вызова терминала — `process.cwd()`.
-
-**Откуда брать имя папки (например, `/rules/example/spec.md`)?**
-Имя текущего проекта (в документации обозначено как `example`) скрипт должен определять динамически на основе папки, из которой он запущен. Для этого необходимо использовать `path.basename(process.cwd())`.
+**How is the project name determined?**
+Dynamically via `path.basename(process.cwd())`. The directory name of the target project is used to find overrides in `rules/projects/`.
