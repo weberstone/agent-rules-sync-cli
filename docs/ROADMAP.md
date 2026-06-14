@@ -169,20 +169,19 @@
 **Цель:** Генерация главных файлов для каждого поддерживаемого AI-агента.
 
 **Задачи:**
-- [ ] Тип `AgentGenerator = (context: GeneratorContext) => { filename: string; content: string }`
-  - `GeneratorContext` содержит: `rulesPath`, `hasUserprompt`, `frameworkFiles[]`, `hasPackageRules`, `agents` etc.
-- [ ] `generateClaudeMd` — CLAUDE.md с таблицей приоритетов. userprompt.md на Priority 1 (CRITICAL) если есть. Framework-файлы — по одному на строку для fullstack. package-rules.md — только если создан
-- [ ] `generateAgentsMd` — AGENTS.md (аналогичен CLAUDE.md)
-- [ ] `generateCursorRules` — `.cursorrules` с референсами, приоритеты согласно spec
-- [ ] Заглушки для Gemini, Codex, Continue — `TODO: define format`
-- [ ] Реестр: `Map<string, AgentGenerator>` — выбор генератора по ключу
+- [x] `GeneratorContext` — `hasUserprompt`, `hasWorkflow`, `hasSpec`, `hasArchitecture`, `frameworkFiles[]`, `hasPackageRules`
+- [x] `AgentGenerator = (ctx: GeneratorContext) => AgentFile[]` — возвращает массив (claude-code → 2 файла)
+- [x] `generateClaudeMd` — CLAUDE.md + AGENTS.md (идентичный контент, разные имена). Таблица с динамическими строками. Приоритеты фиксированные (P1–P6), отсутствующие файлы → нет строки
+- [x] `generateCursorRules` — `.cursorrules`, упрощённый формат, те же приоритеты
+- [x] Заглушки для Gemini, Codex, Continue — возвращают один файл-заглушку
+- [x] `getGenerator(key)` — поиск в registry `Map<AgentKey, AgentGenerator>`
 
-**Зависимости:** Этап 2 (утилиты). Может идти параллельно с Этапами 5-6.
+**Зависимости:** нет (только generator.types). Может идти параллельно с Этапами 5-6.
 
 **Definition of Done:**
-- CLAUDE.md: userprompt.md на P1 (CRITICAL) если есть. Если нет — строка отсутствует. Framework-файлы динамически. package-rules опционально
-- AGENTS.md структурно идентичен CLAUDE.md
-- `.cursorrules` содержит ссылки с учётом приоритетов
+- [x] CLAUDE.md + AGENTS.md: userprompt на P1 (CRITICAL) если есть. Отсутствует → нет строки. Framework-файлы — N строк на P5. package-rules — только если есть
+- [x] `.cursorrules` — ссылки в таблице, приоритеты согласно PRD
+- [x] Gemini, Codex, Continue — заглушки с TODO
 - Gemini, Codex, Continue — заглушки с TODO
 
 ---
