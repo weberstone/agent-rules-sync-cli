@@ -1,0 +1,1 @@
+console.log('agent-rules-sync-cli ready');
