@@ -247,7 +247,7 @@ export class OrchestratorService {
     const pc = this.colors;
 
     const art = [
-      pc.boldMagenta('        ▄████▄ '),
+      pc.boldMagenta('   ▄████▄     '),
       pc.boldMagenta('    ▄████████▄   '),
       pc.boldMagenta('   ███◣▛██▜◢███  '),
       pc.boldMagenta('   ███▒████▒███  '),
