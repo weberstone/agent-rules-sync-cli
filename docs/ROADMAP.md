@@ -51,7 +51,7 @@
 **Цель:** Чтение, запись и валидация `ai-rules-config.json`.
 
 **Задачи:**
-- [ ] TypeScript-тип `Config`:
+- [x] TypeScript-тип `Config`:
   ```ts
   interface Config {
     version: number;
@@ -63,10 +63,10 @@
     lastSync: string; // ISO 8601
   }
   ```
-- [ ] `readConfig(targetDir): Config | null` — читает и валидирует JSON
-- [ ] `writeConfig(targetDir, config): Promise<void>` — форматированный JSON
-- [ ] `validateConfig(data): Config` — проверка структуры, понятная ошибка при несовпадении
-- [ ] Повреждённый JSON → warning + предложение пройти опросник заново
+- [x] `readConfig(targetDir): Config | null` — читает и валидирует JSON
+- [x] `writeConfig(targetDir, config): Promise<void>` — форматированный JSON
+- [x] `validateConfig(data): Config` — проверка структуры, понятная ошибка при несовпадении
+- [x] Повреждённый JSON → warning + предложение пройти опросник заново
 
 **Зависимости:** Этап 2.
 
