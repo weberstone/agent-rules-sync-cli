@@ -204,3 +204,46 @@ describe('GeneratorRegistry', () => {
     expect(registry.get('unknown')).toBeUndefined();
   });
 });
+
+// ---- Skills section ----
+
+describe('skills section', () => {
+  it('includes skills table when skills are present', () => {
+    const ctx: GeneratorContext = {
+      ...fullContext,
+      skills: [
+        {
+          name: 'angular-dev',
+          path: '.agents/skills/angular-dev/SKILL.md',
+          description: 'Angular code generator',
+        },
+      ],
+    };
+    const { content } = generateClaudeMd(ctx)[0];
+    expect(content).toContain('## 🛠️ Skills');
+    expect(content).toContain('angular-dev');
+    expect(content).toContain('Angular code generator');
+  });
+
+  it('does not include skills section when skills are empty', () => {
+    const { content } = generateClaudeMd(fullContext)[0];
+    expect(content).not.toContain('## 🛠️ Skills');
+  });
+
+  it('includes skills in all generators', () => {
+    const ctx: GeneratorContext = {
+      ...fullContext,
+      skills: [
+        {
+          name: 'test-skill',
+          path: '.agents/skills/test-skill.md',
+          description: 'Test',
+        },
+      ],
+    };
+    expect(generateCursorRules(ctx)[0].content).toContain('## 🛠️ Skills');
+    expect(generateGeminiMd(ctx)[0].content).toContain('## 🛠️ Skills');
+    expect(generateAgentsMd(ctx)[0].content).toContain('## 🛠️ Skills');
+    expect(generateContinueRules(ctx)[0].content).toContain('## 🛠️ Skills');
+  });
+});

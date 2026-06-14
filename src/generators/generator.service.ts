@@ -83,6 +83,22 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
   return rows;
 }
 
+/**
+ * Build a skills reference table from the generator context.
+ * Returns `null` if no skills are present — the section is skipped entirely.
+ */
+function buildSkillsTable(ctx: GeneratorContext): string | null {
+  if (ctx.skills.length === 0) return null;
+
+  const header = '| Skill | Path | Description |\n' + '| :--- | :--- | :--- |';
+
+  const body = ctx.skills
+    .map((s) => `| ${s.name} | \`@.agents/skills/${s.path.split('/').pop()}\` | ${s.description} |`)
+    .join('\n');
+
+  return `## 🛠️ Skills\n\n${header}\n${body}`;
+}
+
 /** Shared footer for all generated agent files. */
 function footer(): string {
   return '\n---\n*This file is managed by `agent-rules-sync-cli`. Do not modify manually.*\n';
@@ -116,6 +132,7 @@ function generateClaudeMd(ctx: GeneratorContext): AgentFile[] {
     `- **Initialization**: Always read the priority list above before any task.\n` +
     `- **Pathing**: All paths in this project are relative to the project root.\n` +
     `- **Constraint Enforcement**: If you propose code that violates these rules, you must stop, self-reflect on the rules provided in \`.agents/rules/\`, and correct your proposal BEFORE outputting.\n` +
+    (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
   return [{ filename: 'CLAUDE.md', content }];
@@ -142,6 +159,7 @@ function generateCursorRules(ctx: GeneratorContext): AgentFile[] {
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${lines.join('\n')}\n\n` +
     `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
   return [{ filename: '.cursor/rules/00-agent-rules.mdc', content }];
@@ -163,6 +181,7 @@ function generateGeminiMd(ctx: GeneratorContext): AgentFile[] {
     `This project uses a centralized AI rule management system.\n` +
     `All instructions live in \`.agents/rules/\`. Load these files in priority order:\n\n` +
     `${imports}\n` +
+    (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
   return [{ filename: 'GEMINI.md', content }];
@@ -191,6 +210,7 @@ function generateAgentsMd(ctx: GeneratorContext): AgentFile[] {
     `## Working agreements\n` +
     `- Follow the priority order above for all tasks.\n` +
     `- If a local rule conflicts with general knowledge, the local rule wins.\n\n` +
+    (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
   return [{ filename: 'AGENTS.md', content }];
@@ -216,6 +236,7 @@ function generateContinueRules(ctx: GeneratorContext): AgentFile[] {
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${lines.join('\n')}\n\n` +
     `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
   return [{ filename: '.continue/rules/00-agent-rules.md', content }];
