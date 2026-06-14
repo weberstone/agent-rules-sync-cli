@@ -191,48 +191,50 @@
 **Цель:** Запись всех файлов в `process.cwd()` с обработкой конфликтов.
 
 **Задачи:**
-- [ ] `writeRulesDir(files: CompiledFile[]): Promise<void>` — `.agents/rules/` + все файлы (перезапись всегда, это sync)
-- [ ] `handleExistingAgentFile(filename, newContent): Promise<'overwrite' | 'append' | 'skip'>`:
-  - Файла нет → `overwrite` (создать)
-  - Файл есть → вопрос пользователю: Overwrite / Append / Skip
-  - Overwrite → полная замена
-  - Append → текущий контент + ссылка на `.agents/rules/` в начало
-  - Skip → ничего
-- [ ] `writeAgentFiles(selectedAgents, context): Promise<void>` — для каждого агента: генерация + handleExisting
-- [ ] `suggestGitignore(targetDir)` — проверка `.gitignore` на наличие `ai-rules-config.json`, вывод рекомендации. Сам файл **не модифицируется**
-- [ ] ASCII-арт и финальное сообщение (минималистичный Ктулху)
+- [x] `writeRulesDir(files: CompiledFile[]): Promise<void>` — `.agents/rules/`, всегда перезапись (sync)
+- [x] `fileExists(relativePath): Promise<boolean>` — проверка существования файла
+- [x] `writeAgentFile(relativePath, content, mode): Promise<void>` — create/overwrite/append
+  - create: новый файл, с созданием родительских директорий
+  - overwrite: полная замена
+  - append: новый контент + разделитель + старый контент
+- [x] `isInGitignore(filename): Promise<boolean>` — проверка наличия строки в `.gitignore`
+- [ ] Логика Overwrite/Append/Skip (спрашивать пользователя) — в Оркестраторе (Этап 9), использует `fileExists` + `writeAgentFile`
+- [ ] ASCII-арт — в Оркестраторе
 
-**Зависимости:** Этап 6, Этап 7.
+**Зависимости:** Этап 2 (utils/fs), Этап 6 (CompiledFile тип).
 
 **Definition of Done:**
-- `.agents/rules/` создаётся со всеми актуальными файлами
-- Существующий CLAUDE.md → диалог Overwrite/Append/Skip
-- Append сохраняет старый контент, добавляет ссылку в начало
-- Skip не трогает файл
-- Рекомендация про `.gitignore` выводится
+- [x] `.agents/rules/` создаётся со всеми файлами
+- [x] Перезапись `.agents/rules/` работает (sync-механизм)
+- [x] Agent-файлы создаются с поддержкой вложенных путей (`.cursor/rules/`, `.continue/rules/`)
+- [x] Append prepends новый контент перед старым
+- [x] `isInGitignore` находит точное совпадение строки
 
 ---
 
 ## Этап 9: Оркестратор (главный flow)
 
-**Цель:** Связать все модули в `src/index.ts`.
+**Цель:** Связать все модули, единая точка входа.
 
 **Задачи:**
-- [ ] Pre-flight: `rules/` доступна? Нет → ошибка, выход
-- [ ] Ветка А: Конфиг найден → «Use existing config or start fresh?»
-  - Use existing → пропуск опросника, компиляция из конфига
-  - Start fresh → опросник → компиляция
-- [ ] Ветка Б: Конфиг не найден → опросник → компиляция
-- [ ] Pipeline: Answers → `compileAll` → `writeRulesDir` → `writeAgentFiles` → `writeConfig` → `suggestGitignore` → ASCII art
-- [ ] Глобальный try/catch с понятными сообщениями
+- [x] `OrchestratorService` — принимает все сервисы через DI + projectName
+- [x] `resolveAnswers()` — config найден → «Use existing?»; нет → опросник
+- [x] `configToAnswers()` — восстановление Answers из Config + файловой системы
+- [x] `resolveWriteMode()` — интерактивный выбор Overwrite/Append/Skip для существующих файлов
+- [x] `suggestGitignore()` — проверка и рекомендация
+- [x] `buildGeneratorContext()` — из CompiledFile[] (точный слепок того, что реально создано)
+- [x] `buildConfig()` — Answers → Config для сохранения
+- [x] `src/index.ts` — создание всех экземпляров, запуск orchestrator.run()
 
-**Зависимости:** Этап 3, Этап 5, Этап 8.
+**Зависимости:** Все предыдущие этапы.
 
 **Definition of Done:**
-- Без конфига → опросник → генерация
-- С конфигом → «Use?» → генерация без опросника
-- «Start fresh» → опросник → перезапись конфига
-- Ошибка → понятное сообщение
+- [x] Без конфига → опросник → компиляция → запись → успех
+- [x] С конфигом → «Use existing?» → пропуск опросника → перегенерация
+- [x] Overwrite/Append/Skip при существующих agent-файлах
+- [x] `.gitignore` рекомендация
+- [x] `dist/index.js` = 16.48 KB (весь код, не 42 байта)
+- [x] 103 теста, format, lint, typecheck, build — чисто
 
 ---
 
