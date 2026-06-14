@@ -25,7 +25,7 @@ import { ConfigService } from '../config/config.service.js';
 import type { Config } from '../config/config.types.js';
 import { DiscoveryService } from '../discovery/discovery.service.js';
 import { PromptService } from '../prompts/prompts.service.js';
-
+import type { Answers } from '../prompts/prompts.types.js';
 import { AVAILABLE_AGENTS } from '../prompts/prompts.types.js';
 import { CompilerService } from '../compiler/compiler.service.js';
 import type { CompiledFile } from '../compiler/compiler.types.js';
@@ -82,6 +82,9 @@ export class OrchestratorService {
     if (syncRules) {
       const rulesAnswers = await this.promptService.run(this.projectName);
       if (rulesAnswers === null) return;
+
+      // Resolve project-vs-general name conflicts before compiling
+      await this.resolveRuleConflicts(rulesAnswers);
 
       const s = spinner();
       s.start('Compiling rules from templates...');
@@ -287,6 +290,75 @@ export class OrchestratorService {
     }
 
     return choices as string[];
+  }
+
+  // ---- Rule name conflict resolution ----
+
+  /**
+   * Check for name conflicts between project overrides and general templates.
+   * If both exist for the same file, ask the user which source to use.
+   */
+  private async resolveRuleConflicts(rulesAnswers: Answers): Promise<void> {
+    const arch = rulesAnswers.architecture;
+    const projectName = this.projectName;
+
+    // userprompt conflict
+    const hasProjectUserprompt = await this.discovery.hasProjectOverride(
+      projectName,
+      'userprompt.md',
+    );
+    const hasGeneralUserprompt = (await this.discovery.getArchFile(arch, 'userprompt.md')) !== null;
+
+    if (hasProjectUserprompt && hasGeneralUserprompt) {
+      const choice = await select({
+        message: 'userprompt.md exists in both project and general. Which one to use?',
+        options: [
+          { value: 'project', label: 'Project version' },
+          { value: 'general', label: 'General version' },
+        ],
+      });
+      if (!isCancel(choice)) {
+        rulesAnswers.userpromptSource = choice as 'project' | 'general';
+        rulesAnswers.hasUserprompt = true;
+      }
+    }
+
+    // architecture conflict
+    const hasProjectArch = await this.discovery.hasProjectOverride(projectName, 'architecture.md');
+    const hasGeneralArch = (await this.discovery.getArchFile(arch, 'architecture.md')) !== null;
+
+    if (hasProjectArch && hasGeneralArch) {
+      const choice = await select({
+        message: 'architecture.md exists in both project and general. Which one to use?',
+        options: [
+          { value: 'project', label: 'Project version' },
+          { value: 'general', label: 'General version' },
+        ],
+      });
+      if (!isCancel(choice)) {
+        // Architecture doesn't have a source field in Answers — just use the choice in compilation.
+        // The compiler uses ?? which prefers project. We need to override that behavior.
+        // Store the preference temporarily so the compiler can use it.
+        (rulesAnswers as unknown as Record<string, unknown>)._archSource = choice;
+      }
+    }
+
+    // workflow conflict
+    const hasProjectWf = await this.discovery.hasProjectOverride(projectName, 'workflow.md');
+    const hasGeneralWf = (await this.discovery.getArchFile(arch, 'workflow.md')) !== null;
+
+    if (hasProjectWf && hasGeneralWf) {
+      const choice = await select({
+        message: 'workflow.md exists in both project and general. Which one to use?',
+        options: [
+          { value: 'project', label: 'Project version' },
+          { value: 'general', label: 'General version' },
+        ],
+      });
+      if (!isCancel(choice)) {
+        rulesAnswers.workflowSource = choice as 'project' | 'general';
+      }
+    }
   }
 
   // ---- Agent file conflict resolution ----
