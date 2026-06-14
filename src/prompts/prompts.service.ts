@@ -1,4 +1,12 @@
-import { intro, outro, cancel, isCancel, confirm, select, multiselect } from './clack-adapter.js';
+import {
+  intro,
+  outro,
+  cancel,
+  isCancel,
+  confirm,
+  select,
+  multiselect,
+} from './clack-adapter.js';
 import type { Architecture } from '../config/config.types.js';
 import type { DiscoveryService } from '../discovery/discovery.service.js';
 import type { Answers } from './prompts.types.js';
@@ -10,6 +18,12 @@ const ARCH_LABELS: Record<Architecture, string> = {
   fullstack: 'Fullstack',
 };
 
+const C = {
+  dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
+  cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
+  yellow: (s: string) => `\x1b[33m${s}\x1b[39m`,
+};
+
 function isCancelSignal(value: unknown): value is symbol {
   return isCancel(value);
 }
@@ -18,14 +32,17 @@ export class PromptService {
   constructor(private readonly discovery: DiscoveryService) {}
 
   async run(projectName: string): Promise<Answers | null> {
-    intro('agent-rules-sync-cli');
+    intro(C.cyan('agent-rules-sync-cli'));
 
     if (!(await this.stepCheckSpec(projectName))) return null;
 
     const architecture = await this.stepArchitecture();
     if (architecture === null) return null;
 
-    const userpromptResult = await this.stepUserprompt(architecture, projectName);
+    const userpromptResult = await this.stepUserprompt(
+      architecture,
+      projectName,
+    );
     if (userpromptResult === null) return null;
     const { hasUserprompt, userpromptSource } = userpromptResult;
 
@@ -41,7 +58,7 @@ export class PromptService {
     const agents = await this.stepAgents();
     if (agents === null) return null;
 
-    outro('Configuration complete.');
+    outro('✨ Configuration complete!');
 
     return {
       architecture,
@@ -57,17 +74,24 @@ export class PromptService {
   // ---- Step 2 ----
 
   private async stepCheckSpec(projectName: string): Promise<boolean> {
-    const hasSpec = await this.discovery.hasProjectOverride(projectName, 'spec.md');
+    const hasSpec = await this.discovery.hasProjectOverride(
+      projectName,
+      'spec.md',
+    );
 
     if (hasSpec) return true;
 
-    const proceed = await confirm(
-      `No project spec found. You can create one at rules/projects/${projectName}/spec.md. ` +
-        'Continue without project spec?',
-    );
+    const proceed = await confirm({
+      message:
+        `📋 No project spec found.\n` +
+        C.dim(
+          `   Create one at rules/projects/${projectName}/spec.md`,
+        ) +
+        `\n   Continue without it?`,
+    });
 
     if (isCancelSignal(proceed) || !proceed) {
-      cancel('Operation cancelled by user.');
+      cancel('🚫 Cancelled by user.');
       return false;
     }
 
@@ -80,7 +104,9 @@ export class PromptService {
     const available = await this.discovery.getAvailableArchitectures();
 
     if (available.length === 0) {
-      cancel('No architecture directories found in rules/. At least one is required.');
+      cancel(
+        '❌ No architecture directories found in rules/. At least one is required.',
+      );
       return null;
     }
 
@@ -89,10 +115,13 @@ export class PromptService {
       label: ARCH_LABELS[arch],
     }));
 
-    const choice = await select('Select project architecture type:', options);
+    const choice = await select({
+      message: '🏗️  Select project architecture type:',
+      options: options as Parameters<typeof select>[0]['options'],
+    });
 
     if (isCancelSignal(choice)) {
-      cancel('Operation cancelled by user.');
+      cancel('🚫 Cancelled by user.');
       return null;
     }
 
@@ -108,25 +137,36 @@ export class PromptService {
     hasUserprompt: boolean;
     userpromptSource: 'project' | 'general' | null;
   } | null> {
-    const hasProject = await this.discovery.hasProjectOverride(projectName, 'userprompt.md');
+    const hasProject = await this.discovery.hasProjectOverride(
+      projectName,
+      'userprompt.md',
+    );
 
     if (hasProject) {
       return { hasUserprompt: true, userpromptSource: 'project' };
     }
 
-    const generalContent = await this.discovery.getArchFile(architecture, 'userprompt.md');
+    const generalContent = await this.discovery.getArchFile(
+      architecture,
+      'userprompt.md',
+    );
 
     if (generalContent !== null) {
       return { hasUserprompt: true, userpromptSource: 'general' };
     }
 
-    const proceed = await confirm(
-      'Userprompt file not found. It is highly recommended to create one ' +
-        'to define the AI persona. Continue without it?',
-    );
+    const proceed = await confirm({
+      message:
+        `🧠 Userprompt file not found.\n` +
+        C.yellow(
+          '   It is highly recommended to define the AI persona.\n' +
+            `   Create rules/${architecture}/userprompt.md`,
+        ) +
+        `\n   Continue without it?`,
+    });
 
     if (isCancelSignal(proceed) || !proceed) {
-      cancel('Operation cancelled by user.');
+      cancel('🚫 Cancelled by user.');
       return null;
     }
 
@@ -135,17 +175,23 @@ export class PromptService {
 
   // ---- Step 4 ----
 
-  private async stepFrameworks(architecture: Architecture): Promise<string[] | null> {
+  private async stepFrameworks(
+    architecture: Architecture,
+  ): Promise<string[] | null> {
     const available = await this.discovery.listFrameworks(architecture);
 
     if (available.length === 0) {
-      const proceed = await confirm(
-        `No framework rules found in rules/${architecture}/frameworks/. ` +
-          'Continue without framework rules?',
-      );
+      const proceed = await confirm({
+        message:
+          `📦 No framework rules found.\n` +
+          C.dim(
+            `   Add .md files to rules/${architecture}/frameworks/`,
+          ) +
+          `\n   Continue without framework rules?`,
+      });
 
       if (isCancelSignal(proceed) || !proceed) {
-        cancel('Operation cancelled by user.');
+        cancel('🚫 Cancelled by user.');
         return null;
       }
 
@@ -155,23 +201,26 @@ export class PromptService {
     const options = available.map((name) => ({ value: name, label: name }));
 
     if (architecture === 'fullstack') {
-      const choices = await multiselect(
-        'Select frameworks (fullstack — multiple allowed):',
-        options,
-      );
+      const choices = await multiselect({
+        message: '📦 Select frameworks (fullstack — multiple allowed):',
+        options: options as Parameters<typeof multiselect>[0]['options'],
+      });
 
       if (isCancelSignal(choices)) {
-        cancel('Operation cancelled by user.');
+        cancel('🚫 Cancelled by user.');
         return null;
       }
 
       return choices;
     }
 
-    const choice = await select('Select a framework:', options);
+    const choice = await select({
+      message: '📦 Select a framework:',
+      options: options as Parameters<typeof select>[0]['options'],
+    });
 
     if (isCancelSignal(choice)) {
-      cancel('Operation cancelled by user.');
+      cancel('🚫 Cancelled by user.');
       return null;
     }
 
@@ -180,17 +229,23 @@ export class PromptService {
 
   // ---- Step 5 ----
 
-  private async stepPackages(architecture: Architecture): Promise<string[] | null> {
+  private async stepPackages(
+    architecture: Architecture,
+  ): Promise<string[] | null> {
     const available = await this.discovery.listPackages(architecture);
 
     if (available.length === 0) {
-      const proceed = await confirm(
-        `No package rules found in rules/${architecture}/packages/. ` +
-          'Continue without package rules?',
-      );
+      const proceed = await confirm({
+        message:
+          `📚 No package rules found.\n` +
+          C.dim(
+            `   Add .md files to rules/${architecture}/packages/`,
+          ) +
+          `\n   Continue without package rules?`,
+      });
 
       if (isCancelSignal(proceed) || !proceed) {
-        cancel('Operation cancelled by user.');
+        cancel('🚫 Cancelled by user.');
         return null;
       }
 
@@ -199,10 +254,14 @@ export class PromptService {
 
     const options = available.map((name) => ({ value: name, label: name }));
 
-    const choices = await multiselect('Select packages and tools:', options, false);
+    const choices = await multiselect({
+      message: '📚 Select packages and tools:',
+      options: options as Parameters<typeof multiselect>[0]['options'],
+      required: false,
+    });
 
     if (isCancelSignal(choices)) {
-      cancel('Operation cancelled by user.');
+      cancel('🚫 Cancelled by user.');
       return null;
     }
 
@@ -215,18 +274,31 @@ export class PromptService {
     architecture: Architecture,
     projectName: string,
   ): Promise<'project' | 'general' | null> {
-    const hasProject = await this.discovery.hasProjectOverride(projectName, 'workflow.md');
+    const hasProject = await this.discovery.hasProjectOverride(
+      projectName,
+      'workflow.md',
+    );
 
     if (hasProject) return 'project';
 
-    const generalContent = await this.discovery.getArchFile(architecture, 'workflow.md');
+    const generalContent = await this.discovery.getArchFile(
+      architecture,
+      'workflow.md',
+    );
 
     if (generalContent !== null) return 'general';
 
-    const proceed = await confirm('Workflow file not found. Continue without workflow rules?');
+    const proceed = await confirm({
+      message:
+        `⚙️  Workflow file not found.\n` +
+        C.dim(
+          `   Create rules/${architecture}/workflow.md`,
+        ) +
+        `\n   Continue without workflow rules?`,
+    });
 
     if (isCancelSignal(proceed) || !proceed) {
-      cancel('Operation cancelled by user.');
+      cancel('🚫 Cancelled by user.');
       return null;
     }
 
@@ -241,14 +313,14 @@ export class PromptService {
       label: a.label,
     }));
 
-    const choices = await multiselect(
-      'Select AI agents to generate config files for:',
-      options,
-      false,
-    );
+    const choices = await multiselect({
+      message: '🤖 Select AI agents to generate config files for:',
+      options: options as Parameters<typeof multiselect>[0]['options'],
+      required: false,
+    });
 
     if (isCancelSignal(choices)) {
-      cancel('Operation cancelled by user.');
+      cancel('🚫 Cancelled by user.');
       return null;
     }
 
