@@ -114,10 +114,9 @@ export class PromptService {
       return { hasUserprompt: true, userpromptSource: 'project' };
     }
 
-    const generalPath = `${architecture}/userprompt.md`;
-    const hasGeneral = await this.discovery.isFileNonEmpty(generalPath);
+    const generalContent = await this.discovery.getArchFile(architecture, 'userprompt.md');
 
-    if (hasGeneral) {
+    if (generalContent !== null) {
       return { hasUserprompt: true, userpromptSource: 'general' };
     }
 
@@ -220,10 +219,9 @@ export class PromptService {
 
     if (hasProject) return 'project';
 
-    const generalPath = `${architecture}/workflow.md`;
-    const hasGeneral = await this.discovery.isFileNonEmpty(generalPath);
+    const generalContent = await this.discovery.getArchFile(architecture, 'workflow.md');
 
-    if (hasGeneral) return 'general';
+    if (generalContent !== null) return 'general';
 
     const proceed = await confirm('Workflow file not found. Continue without workflow rules?');
 

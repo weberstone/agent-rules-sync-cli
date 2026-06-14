@@ -35,6 +35,7 @@ function makeDiscovery(overrides: Record<string, unknown> = {}) {
     hasProjectOverride: vi.fn().mockResolvedValue(false),
     getProjectOverride: vi.fn().mockResolvedValue(null),
     getTemplateContent: vi.fn().mockResolvedValue(null),
+    getArchFile: vi.fn().mockResolvedValue(null),
     isFileNonEmpty: vi.fn().mockResolvedValue(false),
     ...overrides,
   };
@@ -60,10 +61,10 @@ describe('run', () => {
         .mockResolvedValueOnce(true) // spec
         .mockResolvedValueOnce(false) // userprompt project
         .mockResolvedValueOnce(false), // workflow project
-      isFileNonEmpty: vi
+      getArchFile: vi
         .fn()
-        .mockResolvedValueOnce(true) // userprompt general
-        .mockResolvedValueOnce(true), // workflow general
+        .mockResolvedValueOnce('# Userprompt') // userprompt general
+        .mockResolvedValueOnce('# Workflow'), // workflow general
       listFrameworks: vi.fn().mockResolvedValue(['angular-guidelines', 'only-node']),
       listPackages: vi.fn().mockResolvedValue(['tailwind', 'typescript']),
       getAvailableArchitectures: vi.fn().mockResolvedValue(['frontend', 'backend']),
@@ -124,10 +125,10 @@ describe('run', () => {
         .mockResolvedValueOnce(true) // spec
         .mockResolvedValueOnce(false) // userprompt project
         .mockResolvedValueOnce(false), // workflow project
-      isFileNonEmpty: vi
+      getArchFile: vi
         .fn()
-        .mockResolvedValueOnce(true) // userprompt general
-        .mockResolvedValueOnce(true), // workflow general
+        .mockResolvedValueOnce('# Userprompt') // userprompt general
+        .mockResolvedValueOnce('# Workflow'), // workflow general
       getAvailableArchitectures: vi.fn().mockResolvedValue(['frontend', 'backend', 'fullstack']),
       listFrameworks: vi.fn().mockResolvedValue(['angular-guidelines', 'only-node']),
       listPackages: vi.fn().mockResolvedValue(['tailwind']),
@@ -153,10 +154,10 @@ describe('run', () => {
         .mockResolvedValueOnce(true) // spec
         .mockResolvedValueOnce(false) // userprompt project
         .mockResolvedValueOnce(false), // workflow project
-      isFileNonEmpty: vi
+      getArchFile: vi
         .fn()
-        .mockResolvedValueOnce(false) // userprompt general
-        .mockResolvedValueOnce(true), // workflow general
+        .mockResolvedValueOnce(null) // userprompt general: not found
+        .mockResolvedValueOnce('# Workflow'), // workflow general
       listFrameworks: vi.fn().mockResolvedValue(['only-node']),
       listPackages: vi.fn().mockResolvedValue([]), // empty — goes to confirm branch
     });
@@ -184,7 +185,10 @@ describe('run', () => {
         .mockResolvedValueOnce(true) // spec
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(false),
-      isFileNonEmpty: vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true),
+      getArchFile: vi
+        .fn()
+        .mockResolvedValueOnce('# Userprompt')
+        .mockResolvedValueOnce('# Workflow'),
       listFrameworks: vi.fn().mockResolvedValue([]),
       listPackages: vi.fn().mockResolvedValue([]),
     });
@@ -224,7 +228,10 @@ describe('run', () => {
         .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(false),
-      isFileNonEmpty: vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true),
+      getArchFile: vi
+        .fn()
+        .mockResolvedValueOnce('# Userprompt')
+        .mockResolvedValueOnce('# Workflow'),
       listFrameworks: vi.fn().mockResolvedValue(['only-node']),
       listPackages: vi.fn().mockResolvedValue(['typescript']),
     });
