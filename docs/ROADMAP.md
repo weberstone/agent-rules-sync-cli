@@ -9,7 +9,7 @@
 **Цель:** Скелет проекта, способный скомпилироваться в `dist/index.js`.
 
 **Задачи:**
-- [x] `package.json` — name, version, `"type": "module"`, dependencies (`@clack/prompts`, `picocolors`), devDependencies (`tsup`, `typescript`, `@types/node`), `"files": ["dist/", "rules/"]`
+- [x] `package.json` — name, version, `"type": "module"`, dependencies (`@clack/prompts`, `picocolors`), devDependencies (`tsup`, `typescript`, `@types/node`), `"files": ["dist/", "context/"]`
 - [x] `tsconfig.json` — target ES2022, module ESNext, strict, moduleResolution bundler
 - [x] `tsup.config.ts` — entry `src/index.ts`, format esm, minify, clean, no external
 - [x] `src/index.ts` — минимальный `console.log('agent-rules-sync-cli ready')`
@@ -32,7 +32,7 @@
 - [x] `getSourceDir()` — директория CLI через `import.meta.url` + `fileURLToPath`
 - [x] `getTargetDir()` — `process.cwd()`
 - [x] `getProjectName()` — `path.basename(process.cwd())`
-- [x] `getRulesDir()` — `path.join(getSourceDir(), 'rules')`
+- [x] `getRulesDir()` — `path.join(getSourceDir(), 'context/rules')`
 - [x] Цветное логирование: `logSuccess()`, `logWarning()`, `logError()`, `logInfo()` (через `picocolors`)
 - [x] `readTextFile(path)`, `writeTextFile(path, content)` на `fs/promises`
 - [x] `ensureDir(path)` — рекурсивное создание директории
@@ -81,18 +81,18 @@
 
 ## Этап 4: Обнаружение шаблонов (Discovery)
 
-**Цель:** Сканирование `rules/` и возврат доступных опций для каждого шага опросника.
+**Цель:** Сканирование `context/rules/` и возврат доступных опций для каждого шага опросника.
 
 **Задачи:**
-- [x] Переименовать `rules/*/package/` → `rules/*/packages/` (привести к каноническому имени)
-- [x] `listFrameworks(arch): Promise<string[]>` — сканирует `rules/<arch>/frameworks/`, имена файлов без `.md`
-- [x] `listPackages(arch): Promise<string[]>` — сканирует `rules/<arch>/packages/`
-- [x] `hasProjectOverride(projectName, fileName): Promise<boolean>` — непустой файл в `rules/projects/<projectName>/`
+- [x] Переименовать `context/rules/*/package/` → `context/rules/*/packages/` (привести к каноническому имени)
+- [x] `listFrameworks(arch): Promise<string[]>` — сканирует `context/rules/<arch>/frameworks/`, имена файлов без `.md`
+- [x] `listPackages(arch): Promise<string[]>` — сканирует `context/rules/<arch>/packages/`
+- [x] `hasProjectOverride(projectName, fileName): Promise<boolean>` — непустой файл в `context/projects/<projectName>/rules/`
 - [x] `getProjectOverride(projectName, fileName): Promise<string | null>` — содержимое проектного переопределения
 - [x] `getTemplateContent(arch, category, name): Promise<string | null>` — содержимое общего шаблона
 - [x] `isFileNonEmpty(path): Promise<boolean>` — существует и не пуст после `.trim()`
 - [x] Архитектуры: `frontend`, `backend`, `fullstack` — единообразная обработка
-- [x] `getAvailableArchitectures(): Promise<Architecture[]>` — возвращает только те архитектуры, чьи папки существуют в `rules/`. Fullstack показывается в опроснике только если есть `rules/fullstack/`
+- [x] `getAvailableArchitectures(): Promise<Architecture[]>` — возвращает только те архитектуры, чьи папки существуют в `context/rules/`. Fullstack показывается в опроснике только если есть `context/rules/fullstack/`
 
 **Зависимости:** Этап 2.
 
@@ -109,10 +109,10 @@
 **Цель:** Полный опросник (шаги 2-7 PRD) через `@clack/prompts`.
 
 **Задачи:**
-- [x] Шаг 2: Проверка `spec.md` в `rules/projects/<name>/`. Если нет/пуст → «Continue without project spec?»
+- [x] Шаг 2: Проверка `spec.md` в `context/projects/<name>/rules/`. Если нет/пуст → «Continue without project spec?»
 - [x] Шаг 3: Radio-выбор архитектуры — динамический список из `getAvailableArchitectures()`
 - [x] Шаг 3b (NEW): Проверка `userprompt.md` — проектный → общий. Если нет/пуст → warning: «Userprompt file not found. It is highly recommended to create one. Continue without it?»
-- [x] Шаг 4: Выбор фреймворков. Frontend/Backend → radio. Fullstack → multiselect (из `rules/fullstack/frameworks/` ТОЛЬКО). Пустая папка → warning + continue/cancel
+- [x] Шаг 4: Выбор фреймворков. Frontend/Backend → radio. Fullstack → multiselect (из `context/rules/fullstack/frameworks/` ТОЛЬКО). Пустая папка → warning + continue/cancel
 - [x] Шаг 5: Multiselect пакетов из `listPackages(arch)`. Пустая папка → warning + continue/cancel
 - [x] Шаг 6: Информирование об источнике workflow (проектный / общий). Пустой → warning + continue/cancel
 - [x] Шаг 7: Multiselect AI-агентов (Claude Code, Cursor, Gemini, Codex, Continue, etc.)
@@ -144,10 +144,10 @@
 **Цель:** На основе `Answers` собрать содержимое для `.agents/rules/`.
 
 **Задачи:**
-- [x] `compileUserprompt(answers, projectName): Promise<CompiledFile | null>` — проектное или `rules/<arch>/userprompt.md`. Если `hasUserprompt=false` → `null`
+- [x] `compileUserprompt(answers, projectName): Promise<CompiledFile | null>` — проектное или `context/rules/<arch>/userprompt.md`. Если `hasUserprompt=false` → `null`
 - [x] `compileSpec(projectName): Promise<CompiledFile | null>` — только проектное переопределение. Если нет → `null`
-- [x] `compileArchitecture(answers, projectName): Promise<CompiledFile | null>` — проектное или `rules/<arch>/architecture.md`, через `??`
-- [x] `compileFrameworks(answers): Promise<CompiledFile[]>` — для каждого в `answers.frameworks` читает `rules/<arch>/frameworks/<name>.md`
+- [x] `compileArchitecture(answers, projectName): Promise<CompiledFile | null>` — проектное или `context/rules/<arch>/architecture.md`, через `??`
+- [x] `compileFrameworks(answers): Promise<CompiledFile[]>` — для каждого в `answers.frameworks` читает `context/rules/<arch>/frameworks/<name>.md`
 - [x] `compileWorkflow(answers, projectName): Promise<CompiledFile | null>` — проектное или общее, по `answers.workflowSource`
 - [x] `compilePackageRules(answers): Promise<CompiledFile | null>` — если `packages` не пуст: `# Code Style & Tools` + конкатенация. Пусто → `null`
 - [x] `compile(answers, projectName): Promise<CompiledFile[]>` — агрегация в порядке приоритета, `null` фильтруются
@@ -248,7 +248,7 @@
 - [ ] Повреждённый конфиг → warning + переход к опроснику
 - [ ] Нет прав на запись → понятная ошибка
 - [ ] Ctrl+C во время опросника → чистый выход
-- [ ] `rules/` не найден рядом с `dist/index.js` (ошибка сборки пакета) → понятная ошибка
+- [ ] `context/rules/` не найден рядом с `dist/index.js` (ошибка сборки пакета) → понятная ошибка
 - [ ] Удалить отладочные `console.log`, оставить только пользовательские сообщения
 
 **Зависимости:** Этап 9.
@@ -266,7 +266,7 @@
 
 **Задачи:**
 - [ ] `tsup` компилирует `src/` → `dist/index.js` (ESM, minified)
-- [ ] `package.json`: `"files": ["dist/", "rules/"]` — шаблоны попадают в пакет
+- [ ] `package.json`: `"files": ["dist/", "context/"]` — шаблоны попадают в пакет
 - [ ] `package.json`: `"exports"` или `"bin"` для запуска через `npx`
 - [ ] Проверить `import.meta.url` после компиляции tsup (не теряется ли в ESM-бандле)
 - [ ] Smoke test: `npx github:user/repo` из тестового проекта
@@ -276,7 +276,7 @@
 **Зависимости:** Этап 10.
 
 **Definition of Done:**
-- `npm pack` → архив с `dist/` и `rules/`
+- `npm pack` → архив с `dist/` и `context/`
 - `npx` запуск работает из произвольной директории
 - `node` запуск работает идентично
 - Оба режима дают одинаковый результат

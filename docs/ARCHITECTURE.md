@@ -11,7 +11,7 @@
 | Local | `node path/to/agent-rules-sync-cli/dist/index.js` | Local repo clone |
 | Remote | `npx github:user/agent-rules-sync-cli` | npm cache (downloaded temporarily) |
 
-Templates (`rules/`) are included in the npm package via `"files": ["dist/", "rules/"]`. In both modes the script reads templates relative to `import.meta.url`. Remote mode does NOT git-clone into the user's project — npm downloads to its cache, the script runs, output goes to `process.cwd()`.
+Templates (`context/`) are included in the npm package via `"files": ["dist/", "context/"]`. In both modes the script reads templates relative to `import.meta.url`. Remote mode does NOT git-clone into the user's project — npm downloads to its cache, the script runs, output goes to `process.cwd()`.
 
 ### System Diagram
 
@@ -19,7 +19,7 @@ Templates (`rules/`) are included in the npm package via `"files": ["dist/", "ru
 ┌──────────────────────────────────────┐
 │  agent-rules-sync-cli (package)      │
 │  ┌────────────┐  ┌────────────────┐  │
-│  │  rules/    │  │  dist/index.js │  │
+│  │  context/  │  │  dist/index.js │  │
 │  │  (templates)│  │  (CLI code)    │  │
 │  └────────────┘  └────────────────┘  │
 └──────────────────┬───────────────────┘
@@ -49,7 +49,7 @@ Templates (`rules/`) are included in the npm package via `"files": ["dist/", "ru
 1. **Zero-config first run.** No config → questionnaire.
 2. **Config-driven repeat runs.** Config allows skipping the questionnaire.
 3. **Source of Truth on CLI side.** Templates live in the `agent-rules-sync-cli` package. Target project gets only compiled output.
-4. **Project overrides.** User can create `rules/projects/<name>/` in their fork with custom versions of `userprompt.md`, `spec.md`, `architecture.md`, `workflow.md`. These take precedence over general templates.
+4. **Project overrides.** User can create `context/projects/<name>/` in their fork with custom versions of `userprompt.md`, `spec.md`, `architecture.md`, `workflow.md`. These take precedence over general templates.
 5. **Minimum dependencies.** `@clack/prompts` + `picocolors`. Everything else — native Node.js.
 6. **Single-file bundle.** `tsup` compiles `src/` into `dist/index.js`.
 
@@ -70,12 +70,12 @@ agent-rules-sync-cli/
 │   │   └── fs.ts                 # File system helpers
 │   ├── discovery/
 │   │   ├── discovery.types.ts    # TemplateCategory type
-│   │   └── discovery.service.ts  # Scan rules/ directory
+│   │   └── discovery.service.ts  # Scan context/rules/ directory
 │   ├── prompts/                  # Questionnaire (Stage 5)
 │   ├── compiler/                 # Rules compilation (Stage 6)
 │   ├── generators/               # Agent file generators (Stage 7)
 │   └── output/                   # File writing (Stage 8)
-├── rules/                        # Templates (included in npm package)
+├── context/rules/                  # Templates (included in npm package)
 │   ├── frontend/
 │   │   ├── userprompt.md         # AI persona (OPTIONAL but recommended)
 │   │   ├── architecture.md
@@ -155,7 +155,7 @@ User runs npx/node
 ### 1. Source vs Target Paths
 
 ```
-Source (templates):  path.dirname(fileURLToPath(import.meta.url)) + '/rules/'
+Source (templates):  path.dirname(fileURLToPath(import.meta.url)) + '/context/rules/'
 Target (output):     process.cwd()
 ```
 
@@ -168,8 +168,8 @@ const projectName = path.basename(process.cwd());
 ### 3. Priority: Project Override → General Template → Skip
 
 For `userprompt.md`, `architecture.md`, `workflow.md`:
-1. `rules/projects/<projectName>/<file>.md` (if exists and non-empty)
-2. `rules/<arch>/<file>.md` (general template)
+1. `context/projects/<projectName>/rules/<file>.md` (if exists and non-empty)
+2. `context/rules/<arch>/<file>.md` (general template)
 3. Skip with warning
 
 For `spec.md`: only from project override. If absent → skip (no warning, normal).
@@ -211,29 +211,29 @@ If nothing selected → file not created, no link in agent files.
 
 ### 6. Bundling Strategy
 
-`tsup` compiles `src/` → `dist/index.js`. `rules/` is NOT bundled — read at runtime. Both included in npm package: `"files": ["dist/", "rules/"]`.
+`tsup` compiles `src/` → `dist/index.js`. `context/rules/` is NOT bundled — read at runtime. Both included in npm package: `"files": ["dist/", "context/"]`.
 
 ### 7. Output Files
 
 | Output file | Source |
 |---|---|
-| `userprompt.md` | Project override or `rules/<arch>/userprompt.md`. Skip if both absent. |
-| `spec.md` | `rules/projects/<name>/spec.md` only. Skip if absent. |
-| `architecture.md` | Project override or `rules/<arch>/architecture.md` |
-| `workflow.md` | Project override or `rules/<arch>/workflow.md` |
-| `<framework>.md` | Selected file(s) from `rules/<arch>/frameworks/`. Original filename preserved. Single for frontend/backend, multiple for fullstack. |
-| `package-rules.md` | Compilation from selected `rules/<arch>/packages/*.md`. Optional. |
+| `userprompt.md` | Project override or `context/rules/<arch>/userprompt.md`. Skip if both absent. |
+| `spec.md` | `context/projects/<name>/rules/spec.md` only. Skip if absent. |
+| `architecture.md` | Project override or `context/rules/<arch>/architecture.md` |
+| `workflow.md` | Project override or `context/rules/<arch>/workflow.md` |
+| `<framework>.md` | Selected file(s) from `context/rules/<arch>/frameworks/`. Original filename preserved. Single for frontend/backend, multiple for fullstack. |
+| `package-rules.md` | Compilation from selected `context/rules/<arch>/packages/*.md`. Optional. |
 
 ### 8. Fullstack Architecture
 
-- Directory: `rules/fullstack/` — same structure as frontend/backend.
-- Framework selection: **multiselect** from `rules/fullstack/frameworks/` ONLY. Does NOT pull from frontend/backend directories.
+- Directory: `context/rules/fullstack/` — same structure as frontend/backend.
+- Framework selection: **multiselect** from `context/rules/fullstack/frameworks/` ONLY. Does NOT pull from frontend/backend directories.
 - No merging logic — fullstack rules are written by the user as a self-contained set.
-- Shown in questionnaire only if `rules/fullstack/` directory exists (dynamic via `getAvailableArchitectures()`).
+- Shown in questionnaire only if `context/rules/fullstack/` directory exists (dynamic via `getAvailableArchitectures()`).
 
 ### 9. Userprompt — Separate Persona File
 
-- Persona extracted from framework files into `rules/<arch>/userprompt.md`.
+- Persona extracted from framework files into `context/rules/<arch>/userprompt.md`.
 - Framework files now contain only technical rules — no persona.
 - Userprompt gets **Priority 1 (CRITICAL)** in agent config files.
 - If `userprompt.md` is not found (neither project nor general), the questionnaire warns but allows continuing. No `userprompt.md` is generated in output, and no link appears in agent files.
@@ -260,7 +260,7 @@ If nothing selected → file not created, no link in agent files.
 | `index.ts` | Orchestration. Entry point. |
 | `config/` | Read, write, validate `ai-rules-config.json`. |
 | `utils/` | Path resolution, colored logging, fs helpers. |
-| `discovery/` | Scan `rules/` — available architectures, frameworks, packages, project overrides. |
+| `discovery/` | Scan `context/rules/` — available architectures, frameworks, packages, project overrides. |
 | `prompts/` | Interactive questionnaire via `@clack/prompts`. No business logic. |
 | `compiler/` | Assemble output `.md` files: copy + compile package-rules.md. |
 | `generators/` | Generate agent-specific files (CLAUDE.md, .cursorrules, etc.). |
@@ -270,7 +270,7 @@ If nothing selected → file not created, no link in agent files.
 
 ## Error Handling Strategy
 
-1. **Pre-flight:** Verify `rules/` is accessible before starting.
+1. **Pre-flight:** Verify `context/rules/` is accessible before starting.
 2. **Graceful degradation:** Template file not found/empty → warn, ask to continue.
 3. **No write permission:** Clear error, exit.
 4. **Cancelled questionnaire (Ctrl+C):** Clean exit, nothing created.

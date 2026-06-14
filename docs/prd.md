@@ -14,7 +14,7 @@
 ## How It Works
 
 1. User forks/clones the rules repository to customize templates.
-2. Inside the repository, `rules/` contains a structured set of template files.
+2. Inside the repository, `context/rules/` contains a structured set of template files.
 3. In the target project, the user runs the CLI script — either locally (`node path/to/dist/index.js`) or remotely (`npx github:user/repo`).
 4. The CLI asks about the project's tech stack interactively.
 5. Final rule files are generated into `.agents/rules/` and agent-specific config files (CLAUDE.md, AGENTS.md, .cursorrules, etc.) are created in the project root.
@@ -23,47 +23,48 @@
 
 ## TECHNICAL IMPLEMENTATION
 
-**Overview:** The repository contains a `rules/` directory with a defined structure. Template files contain rule fragments that get compiled into a final rule set based on the project's configuration.
+**Overview:** The repository contains a `context/` directory with a defined structure. Template files contain rule fragments that get compiled into a final rule set based on the project's configuration.
 
-The repository also contains `rules/projects/<project-name>/` — per-project override directories. Before running the CLI, the user can create a folder named after their target project and place custom rule files there, following the same naming conventions. The CLI will prefer these overrides when the project name matches.
+- `context/rules/` — general template rules organized by architecture type (frontend, backend, fullstack).
+- `context/projects/<project-name>/rules/` — per-project override directories. Before running the CLI, the user can create a folder named after their target project and place custom rule files inside a `rules/` subdirectory. The CLI will prefer these overrides when the project name matches.
 
 ---
 
 ## RULES DIRECTORY STRUCTURE
 
-### `rules/<arch>/userprompt.md` (NEW — CRITICAL PRIORITY)
+### `context/rules/<arch>/userprompt.md` (NEW — CRITICAL PRIORITY)
 AI persona definition. Describes the AI agent's role, expertise, and mindset for this architecture type. Examples:
-- `rules/frontend/userprompt.md` — "You are a dedicated frontend expert..."
-- `rules/backend/userprompt.md` — "You are a dedicated Node.js backend expert..."
-- `rules/fullstack/userprompt.md` — "You are a fullstack developer..."
+- `context/rules/frontend/userprompt.md` — "You are a dedicated frontend expert..."
+- `context/rules/backend/userprompt.md` — "You are a dedicated Node.js backend expert..."
+- `context/rules/fullstack/userprompt.md` — "You are a fullstack developer..."
 
 This file is OPTIONAL but highly recommended. If absent, the user is warned and may continue without it — no userprompt.md will be generated in the output. If present, it gets **Priority 1 (CRITICAL)** in agent config files.
 
-**Project override:** `rules/projects/<name>/userprompt.md` takes precedence over the general one.
+**Project override:** `context/projects/<name>/rules/userprompt.md` takes precedence over the general one.
 
-### `rules/<arch>/workflow.md`
+### `context/rules/<arch>/workflow.md`
 Interaction protocol between the user and the AI agent. Execution rules, commit standards, TDD requirements, memory management, etc. **Priority 2** in agent config files.
 
-**Project override:** `rules/projects/<name>/workflow.md` takes precedence.
+**Project override:** `context/projects/<name>/rules/workflow.md` takes precedence.
 
-### `rules/<arch>/spec.md` — only via project override
-Project-specific specifications: tech stack, package versions, directory structure conventions. Unlike other files, there is NO general `spec.md` in `rules/<arch>/`. Spec exists ONLY as a project override in `rules/projects/<name>/spec.md`. If absent, the file is simply not generated.
+### `context/rules/<arch>/spec.md` — only via project override
+Project-specific specifications: tech stack, package versions, directory structure conventions. Unlike other files, there is NO general `spec.md` in `rules/<arch>/`. Spec exists ONLY as a project override in `context/projects/<name>/rules/spec.md`. If absent, the file is simply not generated.
 
-### `rules/<arch>/architecture.md`
+### `context/rules/<arch>/architecture.md`
 Architecture preferences: SOLID, DDD, Clean Architecture, pattern recommendations, anti-patterns to avoid. **Priority 4** in agent config files.
 
-**Project override:** `rules/projects/<name>/architecture.md` takes precedence.
+**Project override:** `context/projects/<name>/rules/architecture.md` takes precedence.
 
-### `rules/<arch>/frameworks/<framework>.md`
+### `context/rules/<arch>/frameworks/<framework>.md`
 Framework-specific technical rules and best practices. Does NOT contain persona — persona lives in `userprompt.md`.
 
 **Selection type depends on architecture:**
 - `frontend` or `backend`: **radio** (single choice)
-- `fullstack`: **multiselect** (can choose multiple frameworks from `rules/fullstack/frameworks/` only — does NOT pull from frontend/backend directories)
+- `fullstack`: **multiselect** (can choose multiple frameworks from `context/rules/fullstack/frameworks/` only — does NOT pull from frontend/backend directories)
 
 Output filename matches the source filename (e.g., `angular-guidelines.md`). Multiple framework files for fullstack all get copied to output. **Priority 5** in agent config files.
 
-### `rules/<arch>/packages/<package>.md`
+### `context/rules/<arch>/packages/<package>.md`
 Tool/package-specific rules: Tailwind, TypeScript, Angular Material, etc. Contains recommendations, usage examples, constraints. Filename should match the package/tool name.
 
 **Selection type:** multiselect. Selected files are compiled into a single `package-rules.md` with a `# Code Style & Tools` header. If nothing is selected, the file is not created and no link appears in agent config files. **Priority 6 (OPTIONAL)** in agent config files.
@@ -83,7 +84,7 @@ Check for an existing `ai-rules-config.json` in the target project root.
   - "Start fresh" → proceed to Step 2.
 
 ### Step 2: Project Spec Check (`spec.md`)
-Check if `rules/projects/<project-name>/spec.md` exists and is non-empty (where `<project-name>` is derived from `path.basename(process.cwd())`).
+Check if `context/projects/<project-name>/rules/spec.md` exists and is non-empty (where `<project-name>` is derived from `path.basename(process.cwd())`).
 
 - **Exists and non-empty** → proceed to Step 3.
 - **Missing or empty** → show a message (in English) explaining the user can create a project-specific spec. Ask: *"Continue without project specifications?"*
@@ -91,17 +92,17 @@ Check if `rules/projects/<project-name>/spec.md` exists and is non-empty (where 
   - "Cancel" → exit.
 
 ### Step 3: Architecture Type Selection
-Dynamically check which architecture directories exist in `rules/` and present them as options (radio):
+Dynamically check which architecture directories exist in `context/rules/` and present them as options (radio):
 
-- `Frontend` (if `rules/frontend/` exists)
-- `Backend` (if `rules/backend/` exists)
-- `Fullstack` (if `rules/fullstack/` exists)
+- `Frontend` (if `context/rules/frontend/` exists)
+- `Backend` (if `context/rules/backend/` exists)
+- `Fullstack` (if `context/rules/fullstack/` exists)
 
 ### Step 3b: Userprompt Check (`userprompt.md`) — NEW
 Check for userprompt. Priority: project override → general.
 
-- `rules/projects/<name>/userprompt.md` exists and non-empty → use it.
-- Otherwise, `rules/<arch>/userprompt.md` exists and non-empty → use it.
+- `context/projects/<name>/rules/userprompt.md` exists and non-empty → use it.
+- Otherwise, `context/rules/<arch>/userprompt.md` exists and non-empty → use it.
 - **Missing or empty** → warning (in English): *"Userprompt file not found. It is highly recommended to create one to define the AI persona for this architecture. Continue without it?"*
   - "Continue" → no `userprompt.md` generated in output, no link in agent files.
   - "Cancel" → exit.
@@ -109,18 +110,18 @@ Check for userprompt. Priority: project override → general.
 ### Step 4: Framework Selection
 Based on the architecture selected in Step 3:
 
-- **Frontend / Backend:** Read `rules/<arch>/frameworks/`, present as **radio** selection.
-- **Fullstack:** Read `rules/fullstack/frameworks/` ONLY, present as **multiselect**.
+- **Frontend / Backend:** Read `context/rules/<arch>/frameworks/`, present as **radio** selection.
+- **Fullstack:** Read `context/rules/fullstack/frameworks/` ONLY, present as **multiselect**.
 
 If the frameworks directory is empty or missing → warning + ask *"Continue without framework rules?"*
 
 ### Step 5: Package Selection
-Based on the architecture selected in Step 3, read `rules/<arch>/packages/` and present as **multiselect**.
+Based on the architecture selected in Step 3, read `context/rules/<arch>/packages/` and present as **multiselect**.
 
 If the packages directory is empty or missing → warning + ask *"Continue without package rules?"*
 
 ### Step 6: Workflow (`workflow.md`)
-Priority: project override (`rules/projects/<name>/workflow.md`) → general (`rules/<arch>/workflow.md`).
+Priority: project override (`context/projects/<name>/rules/workflow.md`) → general (`context/rules/<arch>/workflow.md`).
 
 If the selected file is missing or empty → warning + ask *"Continue without workflow rules?"*
 
@@ -200,7 +201,7 @@ Save `ai-rules-config.json` with the user's answers. Print an ASCII Cthulhu art 
 ## FAQ
 
 **Where is the script stored?**
-In the same repository as the rules ("server" side). The repo contains both `rules/` (templates) and `src/` (CLI code).
+In the same repository as the rules ("server" side). The repo contains both `context/` (templates) and `src/` (CLI code).
 
 **How is the script invoked?**
 Two ways:
@@ -208,4 +209,4 @@ Two ways:
 2. Remotely: `npx github:user/agent-rules-sync-cli`
 
 **How is the project name determined?**
-Dynamically via `path.basename(process.cwd())`. The directory name of the target project is used to find overrides in `rules/projects/`.
+Dynamically via `path.basename(process.cwd())`. The directory name of the target project is used to find overrides in `context/projects/`.
