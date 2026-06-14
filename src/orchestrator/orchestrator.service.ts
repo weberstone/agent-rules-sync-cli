@@ -1,30 +1,45 @@
 /**
  * Orchestrator — ties all services together into the complete CLI flow.
  *
- * Lifecycle:
- *   preflight → config check → questionnaire (or skip) → compile →
- *   write .agents/rules/ → generate & write agent files (with conflict
- *   resolution) → save config → finale (ASCII Cthulhu + boxes)
+ * Lifecycle (Phase 2):
+ *   preflight → config → agent conflict check →
+ *   "Sync rules?" → Rules flow (questionnaire → compile → write) →
+ *   "Sync skills?" → Skills flow (questionnaire → compile → copy) →
+ *   Agent selection → Generate agent files (RULES + SKILLS) →
+ *   Save config → Finale
  *
- * All services are injected via constructor (dependency injection),
- * making the orchestrator testable with mock services.
+ * All services are injected via constructor (dependency injection).
  */
 
-import { select, confirm, isCancel, cancel, outro, spinner } from '../prompts/clack-adapter.js';
+import {
+  select,
+  confirm,
+  isCancel,
+  cancel,
+  outro,
+  spinner,
+  intro,
+  multiselect,
+} from '../prompts/clack-adapter.js';
 import { ConfigService } from '../config/config.service.js';
 import type { Config } from '../config/config.types.js';
 import { DiscoveryService } from '../discovery/discovery.service.js';
 import { PromptService } from '../prompts/prompts.service.js';
-import type { Answers } from '../prompts/prompts.types.js';
+
+import { AVAILABLE_AGENTS } from '../prompts/prompts.types.js';
 import { CompilerService } from '../compiler/compiler.service.js';
 import type { CompiledFile } from '../compiler/compiler.types.js';
 import { generatorRegistry } from '../generators/generator.service.js';
 import type { GeneratorContext } from '../generators/generator.types.js';
 import { OutputService } from '../output/output.service.js';
+
+import { SkillsDiscoveryService } from '../skills/skills-discovery.service.js';
+import { SkillsPromptService } from '../skills/skills-prompts.service.js';
+import { SkillsCompilerService } from '../skills/skills-compiler.service.js';
+import type { ParsedSkill } from '../skills/skills.types.js';
 import { logError } from '../utils/log.js';
 import fs from 'node:fs/promises';
 
-/** Known rule file names — used to separate framework files from standard ones. */
 const KNOWN_RULE_FILES = new Set([
   'userprompt.md',
   'workflow.md',
@@ -40,30 +55,77 @@ export class OrchestratorService {
     private readonly promptService: PromptService,
     private readonly compiler: CompilerService,
     private readonly output: OutputService,
+    private readonly skillsDiscovery: SkillsDiscoveryService,
+    private readonly skillsPrompt: SkillsPromptService,
+    private readonly skillsCompiler: SkillsCompilerService,
     private readonly projectName: string,
     private readonly rulesDir: string,
     private readonly targetDir: string,
   ) {}
 
-  /** Run the full CLI lifecycle. Returns when done or on unrecoverable error. */
   async run(): Promise<void> {
     if (!(await this.preflightRulesDir())) return;
     if (!(await this.preflightWriteAccess())) return;
 
-    const answers = await this.resolveAnswers();
-    if (answers === null) return;
+    intro('agent-rules-sync-cli');
 
-    const s = spinner();
-    s.start('Compiling rules from templates...');
-    const ruleFiles = await this.compiler.compile(answers, this.projectName);
+    // 1. Config discovery
+    const configAnswers = await this.resolveConfig();
+    if (configAnswers === null) return;
 
-    await this.output.writeRulesDir(ruleFiles);
-    s.stop('Rules compiled and saved to .agents/rules/');
+    // 2. Agent file conflict check (before rules/skills)
+    // Handled during generation — no pre-check needed, resolveWriteMode handles it
 
-    // Agent files — interactive, spinner off
-    const ctx = buildGeneratorContext(ruleFiles);
+    // 3. Rules branch
+    let ruleFiles: CompiledFile[] = [];
+    const syncRules = await this.askSyncRules();
+    if (syncRules) {
+      const rulesAnswers = await this.promptService.run(this.projectName);
+      if (rulesAnswers === null) return;
+
+      const s = spinner();
+      s.start('Compiling rules from templates...');
+      ruleFiles = await this.compiler.compile(rulesAnswers, this.projectName);
+      await this.output.writeRulesDir(ruleFiles);
+      s.stop('Rules compiled and saved to .agents/rules/');
+
+      // Merge rules answers into config answers
+      Object.assign(configAnswers, rulesAnswers);
+    }
+
+    // 4. Skills branch
+    let copiedSkills: ParsedSkill[] = [];
+    const syncSkills = await this.askSyncSkills();
+    if (syncSkills) {
+      const skillsAnswers = await this.skillsPrompt.run(this.projectName);
+      if (skillsAnswers === null) return;
+
+      if (skillsAnswers.selectedSkills.length > 0) {
+        const allSkills = [
+          ...(await this.skillsDiscovery.listProjectSkills(this.projectName)),
+          ...(await this.skillsDiscovery.listGeneralSkills()),
+        ];
+        const selected = allSkills.filter((s) => skillsAnswers.selectedSkills.includes(s.name));
+        const s = spinner();
+        s.start('Copying skills...');
+        const names = await this.skillsCompiler.compile(selected);
+        copiedSkills = selected.filter((s) => names.includes(s.name));
+        s.stop('Skills copied to .agents/skills/');
+      }
+
+      configAnswers.syncSkills = true;
+      configAnswers.skills = skillsAnswers.selectedSkills;
+    }
+
+    // 5. Agent selection (always, at the end)
+    const agents = await this.stepAgentSelection();
+    if (agents === null) return;
+    configAnswers.agents = agents;
+
+    // 6. Generate & write agent files
+    const ctx = buildGeneratorContext(ruleFiles, copiedSkills);
     const writtenFiles: string[] = [];
-    for (const agentKey of answers.agents) {
+    for (const agentKey of agents) {
       const generator = generatorRegistry.get(agentKey);
       if (!generator) continue;
 
@@ -76,15 +138,18 @@ export class OrchestratorService {
       }
     }
 
-    await this.configService.write(buildConfig(answers, this.projectName));
+    // 7. Save config
+    await this.configService.write(buildConfig(configAnswers, this.projectName));
 
-    this.showFinale(ruleFiles, writtenFiles);
+    // 8. Grand finale
+    this.showFinale(ruleFiles, writtenFiles, copiedSkills);
+
+    // 9. Gitignore warning
     this.showGitignoreWarning();
   }
 
-  // ---- Pre-flight checks ----
+  // ---- Pre-flight ----
 
-  /** Verify the template directory is accessible. Fail fast if not. */
   private async preflightRulesDir(): Promise<boolean> {
     try {
       await fs.access(this.rulesDir, fs.constants.R_OK);
@@ -99,7 +164,6 @@ export class OrchestratorService {
     }
   }
 
-  /** Verify the target directory is writable. Fail fast if not. */
   private async preflightWriteAccess(): Promise<boolean> {
     try {
       await fs.access(this.targetDir, fs.constants.W_OK);
@@ -114,27 +178,19 @@ export class OrchestratorService {
     }
   }
 
-  // ---- Config / Answers resolution ----
+  // ---- Config ----
 
-  /**
-   * Determine the answers: from existing config (if found and user agrees),
-   * or from a fresh questionnaire. Returns null if the user cancels.
-   */
-  private async resolveAnswers(): Promise<Answers | null> {
+  private async resolveConfig(): Promise<Record<string, unknown> | null> {
     const existingConfig = await this.configService.read();
 
     if (existingConfig === null) {
       if (!process.stdin.isTTY) {
-        logError(
-          'No configuration file found and no interactive terminal available. ' +
-            'Run the script in a terminal for first-time setup, or create an ai-rules-config.json manually.',
-        );
+        logError('No configuration file found and no interactive terminal available.');
         return null;
       }
-      return this.promptService.run(this.projectName);
+      return {};
     }
 
-    // Non-interactive mode (CI/CD): auto-use existing config
     if (!process.stdin.isTTY) {
       return this.configToAnswers(existingConfig);
     }
@@ -152,23 +208,20 @@ export class OrchestratorService {
       return this.configToAnswers(existingConfig);
     }
 
-    return this.promptService.run(this.projectName);
+    return {};
   }
 
-  /**
-   * Reconstruct `Answers` from a saved `Config` by re-deriving
-   * `userpromptSource` and `workflowSource` from the file system.
-   */
-  private async configToAnswers(config: Config): Promise<Answers> {
-    const projectName = config.projectName;
+  private async configToAnswers(config: Config): Promise<Record<string, unknown>> {
     const arch = config.architecture;
 
     const hasProjectUserprompt = await this.discovery.hasProjectOverride(
-      projectName,
+      config.projectName,
       'userprompt.md',
     );
-
-    const hasProjectWorkflow = await this.discovery.hasProjectOverride(projectName, 'workflow.md');
+    const hasProjectWorkflow = await this.discovery.hasProjectOverride(
+      config.projectName,
+      'workflow.md',
+    );
     const hasGeneralWorkflow = await this.discovery.isFileNonEmpty(
       `${this.rulesDir}/${arch}/workflow.md`,
     );
@@ -193,17 +246,51 @@ export class OrchestratorService {
       packages: config.packages,
       workflowSource,
       agents: config.agents,
+      syncSkills: config.syncSkills,
+      skills: config.skills,
     };
+  }
+
+  // ---- Rules / Skills sync prompts ----
+
+  private async askSyncRules(): Promise<boolean> {
+    const proceed = await confirm({
+      message: 'Sync rules for this project?',
+    });
+    return !isCancel(proceed) && !!proceed;
+  }
+
+  private async askSyncSkills(): Promise<boolean> {
+    const proceed = await confirm({
+      message: 'Sync skills for this project?',
+    });
+    return !isCancel(proceed) && !!proceed;
+  }
+
+  // ---- Agent selection ----
+
+  private async stepAgentSelection(): Promise<string[] | null> {
+    const options = AVAILABLE_AGENTS.map((a) => ({
+      value: a.value,
+      label: a.label,
+    }));
+
+    const choices = await multiselect({
+      message: '🤖 Select AI agents to generate config files for:',
+      options,
+      required: false,
+    });
+
+    if (isCancel(choices)) {
+      cancel('🚫 Cancelled by user.');
+      return null;
+    }
+
+    return choices as string[];
   }
 
   // ---- Agent file conflict resolution ----
 
-  /**
-   * Determine how to write an agent file:
-   * - File doesn't exist → `create`
-   * - File exists with SYNC markers → `update` (silent, safe)
-   * - File exists without markers → ask the user
-   */
   private async resolveWriteMode(
     filename: string,
   ): Promise<'create' | 'overwrite' | 'update' | 'skip'> {
@@ -230,24 +317,25 @@ export class OrchestratorService {
     return choice as 'update' | 'overwrite' | 'skip';
   }
 
-  // ---- Finale rendering ----
+  // ---- Finale ----
 
-  /** Render a horizontal rule in the given color. */
   private hr(color: (s: string) => string): string {
     return color('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   }
 
-  /** Render a padded line in the given color. */
   private padLine(raw: string, color: (s: string) => string): string {
     return '  ' + color(raw);
   }
 
-  /** Show the Cthulhu ASCII art, success box, and file listing. */
-  private showFinale(ruleFiles: CompiledFile[], writtenFiles: string[]): void {
+  private showFinale(
+    ruleFiles: CompiledFile[],
+    writtenFiles: string[],
+    copiedSkills: ParsedSkill[],
+  ): void {
     const pc = this.colors;
 
     const art = [
-      pc.boldMagenta('   ▄████▄     '),
+      pc.boldMagenta('        ▄████▄ '),
       pc.boldMagenta('    ▄████████▄   '),
       pc.boldMagenta('   ███◣▛██▜◢███  '),
       pc.boldMagenta('   ███▒████▒███  '),
@@ -257,12 +345,16 @@ export class OrchestratorService {
       pc.boldMagenta(' ▀  ╲  ╲╱  ╱  ▀ '),
     ];
 
+    const parts: string[] = [];
+    if (ruleFiles.length > 0) parts.push(pc.dim('📁 .agents/rules/ created'));
+    if (copiedSkills.length > 0) parts.push(pc.dim('🛠️  .agents/skills/ created'));
+    parts.push(pc.dim('⚙️  Agent config files generated'));
+    parts.push(pc.dim('💾 Configuration saved'));
+
     const info = [
       ' ' + pc.boldGreen('✨ Rules synchronized!'),
       '',
-      ' ' + pc.dim('📁 .agents/rules/ created'),
-      ' ' + pc.dim('⚙️  Agent config files generated'),
-      ' ' + pc.dim('💾 Configuration saved'),
+      ...parts.map((p) => ' ' + p),
       '',
       ' ' + pc.dim('📂 ' + this.projectName),
       '',
@@ -270,21 +362,34 @@ export class OrchestratorService {
 
     outro(art.map((line, i) => line + (info[i] ?? '')).join('\n'));
 
-    const files: string[] = ruleFiles.map((f) => f.filename);
-    if (writtenFiles.length > 0) files.push(...writtenFiles);
+    // Files box
+    const files: string[] = [];
+    if (ruleFiles.length > 0) {
+      files.push(pc.boldGreen('Rules:'));
+      files.push(...ruleFiles.map((f) => '  ' + f.filename));
+    }
+    if (copiedSkills.length > 0) {
+      if (files.length > 0) files.push('');
+      files.push(pc.boldGreen('Skills:'));
+      files.push(...copiedSkills.map((s) => '  ' + s.name));
+    }
+    if (writtenFiles.length > 0) {
+      files.push('');
+      files.push(pc.boldGreen('Agent configs:'));
+      files.push(...writtenFiles.map((f) => '  ' + f));
+    }
 
     const lines: string[] = [
       this.hr(pc.boldGreen),
       this.padLine('  Created files:', pc.boldGreen),
       '',
-      ...files.map((f) => this.padLine('      • ' + f, pc.cyan)),
+      ...files.map((f) => this.padLine('      ' + f, pc.cyan)),
       this.hr(pc.boldGreen),
     ];
 
     outro(lines.join('\n'));
   }
 
-  /** Show the .gitignore recommendation box. */
   private async showGitignoreWarning(): Promise<void> {
     const pc = this.colors;
     const inGitignore = await this.output.isInGitignore('ai-rules-config.json');
@@ -303,7 +408,6 @@ export class OrchestratorService {
     }
   }
 
-  // ANSI color helpers — inline to avoid `this` binding issues after minification.
   private colors = {
     dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
     cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
@@ -316,10 +420,9 @@ export class OrchestratorService {
   };
 }
 
-// ---- Free functions (not stateful, shared across the orchestrator) ----
+// ---- Helpers ----
 
-/** Build GeneratorContext from the actual CompiledFile[] output — single source of truth. */
-function buildGeneratorContext(ruleFiles: CompiledFile[]): GeneratorContext {
+function buildGeneratorContext(ruleFiles: CompiledFile[], skills: ParsedSkill[]): GeneratorContext {
   const filenames = new Set(ruleFiles.map((f) => f.filename));
 
   return {
@@ -331,21 +434,25 @@ function buildGeneratorContext(ruleFiles: CompiledFile[]): GeneratorContext {
       .filter((f) => !KNOWN_RULE_FILES.has(f.filename))
       .map((f) => f.filename),
     hasPackageRules: filenames.has('package-rules.md'),
+    skills: skills.map((s) => ({
+      name: s.name,
+      path: `.agents/skills/${s.name}${s.type === 'folder' ? '/SKILL.md' : '.md'}`,
+      description: s.description,
+    })),
   };
 }
 
-/** Build a Config object from Answers — ready for persistence. */
-function buildConfig(answers: Answers, projectName: string): Config {
+function buildConfig(answers: Record<string, unknown>, projectName: string): Config {
   return {
     version: 1,
     projectName,
-    architecture: answers.architecture,
-    frameworks: answers.frameworks,
-    packages: answers.packages,
-    agents: answers.agents,
-    hasUserprompt: answers.hasUserprompt,
-    syncSkills: false,
-    skills: [],
+    architecture: (answers.architecture as 'frontend') ?? 'frontend',
+    frameworks: (answers.frameworks as string[]) ?? [],
+    packages: (answers.packages as string[]) ?? [],
+    agents: (answers.agents as string[]) ?? [],
+    hasUserprompt: (answers.hasUserprompt as boolean) ?? false,
+    syncSkills: (answers.syncSkills as boolean) ?? false,
+    skills: (answers.skills as string[]) ?? [],
     lastSync: new Date().toISOString(),
   };
 }

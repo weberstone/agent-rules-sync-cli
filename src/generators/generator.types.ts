@@ -19,6 +19,7 @@ export interface GeneratorContext {
   hasArchitecture: boolean;
   frameworkFiles: string[];
   hasPackageRules: boolean;
+  skills: { name: string; path: string; description: string }[];
 }
 
 /** A single agent config file to be written to the project root. */

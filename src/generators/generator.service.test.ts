@@ -17,6 +17,7 @@ const fullContext: GeneratorContext = {
   hasArchitecture: true,
   frameworkFiles: ['angular-guidelines.md'],
   hasPackageRules: true,
+  skills: [],
 };
 
 const minimalContext: GeneratorContext = {
@@ -26,6 +27,7 @@ const minimalContext: GeneratorContext = {
   hasArchitecture: true,
   frameworkFiles: ['only-node.md'],
   hasPackageRules: false,
+  skills: [],
 };
 
 // ---- Claude Code ----
