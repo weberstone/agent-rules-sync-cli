@@ -1,0 +1,1 @@
+export type TemplateCategory = 'frameworks' | 'packages';

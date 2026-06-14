@@ -83,14 +83,15 @@
 **Цель:** Сканирование `rules/` и возврат доступных опций для каждого шага опросника.
 
 **Задачи:**
-- [ ] Переименовать `rules/*/package/` → `rules/*/packages/` (привести к каноническому имени)
-- [ ] `listFrameworks(arch): Promise<string[]>` — сканирует `rules/<arch>/frameworks/`, имена файлов без `.md`
-- [ ] `listPackages(arch): Promise<string[]>` — сканирует `rules/<arch>/packages/`
-- [ ] `hasProjectOverride(projectName, fileName): Promise<boolean>` — непустой файл в `rules/projects/<projectName>/`
-- [ ] `getProjectOverride(projectName, fileName): Promise<string | null>` — содержимое проектного переопределения
-- [ ] `getTemplateContent(arch, category, name): Promise<string | null>` — содержимое общего шаблона
-- [ ] `isFileNonEmpty(path): Promise<boolean>` — существует и не пуст после `.trim()`
-- [ ] Архитектуры: `frontend`, `backend`, `fullstack` — единообразная обработка
+- [x] Переименовать `rules/*/package/` → `rules/*/packages/` (привести к каноническому имени)
+- [x] `listFrameworks(arch): Promise<string[]>` — сканирует `rules/<arch>/frameworks/`, имена файлов без `.md`
+- [x] `listPackages(arch): Promise<string[]>` — сканирует `rules/<arch>/packages/`
+- [x] `hasProjectOverride(projectName, fileName): Promise<boolean>` — непустой файл в `rules/projects/<projectName>/`
+- [x] `getProjectOverride(projectName, fileName): Promise<string | null>` — содержимое проектного переопределения
+- [x] `getTemplateContent(arch, category, name): Promise<string | null>` — содержимое общего шаблона
+- [x] `isFileNonEmpty(path): Promise<boolean>` — существует и не пуст после `.trim()`
+- [x] Архитектуры: `frontend`, `backend`, `fullstack` — единообразная обработка
+- [x] `getAvailableArchitectures(): Promise<Architecture[]>` — возвращает только те архитектуры, чьи папки существуют в `rules/`. Fullstack показывается в опроснике только если есть `rules/fullstack/`
 
 **Зависимости:** Этап 2.
 
