@@ -185,10 +185,11 @@ describe('GeneratorRegistry', () => {
     expect(generatorRegistry.get('unknown')).toBeUndefined();
   });
 
-  it('gemini web returns empty array generator', () => {
+  it('gemini generates GEMINI.md same as gemini-cli', () => {
     const gen = generatorRegistry.get('gemini')!;
     const files = gen(fullContext);
-    expect(files).toEqual([]);
+    expect(files).toHaveLength(1);
+    expect(files[0].filename).toBe('GEMINI.md');
   });
 
   it('new instance can be created independently', () => {

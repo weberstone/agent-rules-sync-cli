@@ -216,7 +216,7 @@ export class GeneratorRegistry {
     this.generators.set('claude-code', generateClaudeMd);
     this.generators.set('cursor', generateCursorRules);
     this.generators.set('gemini-cli', generateGeminiMd);
-    this.generators.set('gemini', () => []);
+    this.generators.set('gemini', generateGeminiMd);
     this.generators.set('codex', generateAgentsMd);
     this.generators.set('continue', generateContinueRules);
   }
