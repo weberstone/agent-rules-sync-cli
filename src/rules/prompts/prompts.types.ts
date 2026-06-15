@@ -39,6 +39,7 @@ export interface Answers {
   hasArchitecture: boolean;
   architectureSource: 'project' | 'general' | null;
   architectureFile: string | null;
+  hasProjectFramework: boolean;
   frameworks: string[];
   packages: string[];
   hasWorkflow: boolean;

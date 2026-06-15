@@ -45,6 +45,7 @@ const KNOWN_RULE_FILES = new Set([
   'workflow.md',
   'spec.md',
   'architecture.md',
+  'framework.md',
   'package-rules.md',
 ]);
 
@@ -275,6 +276,7 @@ export class OrchestratorService {
       hasWorkflow: config.hasWorkflow,
       workflowSource,
       workflowFile: config.workflowFile ?? null,
+      hasProjectFramework: config.hasProjectFramework,
       frameworks: config.frameworks,
       packages: config.packages,
       agents: config.agents,
@@ -444,9 +446,26 @@ export class OrchestratorService {
         }
       }
     }
-  }
 
-  // ---- Agent file conflict resolution ----
+    // framework conflict: project override file vs general frameworks/ folder
+    const hasProjectFw = await this.discovery.hasProjectOverride(projectName, 'framework.md');
+    const generalFrameworks = await this.discovery.listFrameworks(arch);
+    const hasGeneralFrameworks = generalFrameworks.length > 0;
+
+    if (hasProjectFw && hasGeneralFrameworks) {
+      const choice = await select({
+        message:
+          'framework.md exists in both project (framework.md) and general (frameworks/). Which one to use?',
+        options: [
+          { value: 'project', label: 'Project version (framework.md)' },
+          { value: 'general', label: 'General (choose from frameworks/)' },
+        ],
+      });
+      if (!isCancel(choice)) {
+        rulesAnswers.hasProjectFramework = choice === 'project';
+      }
+    }
+  }
 
   private async resolveWriteMode(
     filename: string,
@@ -614,6 +633,7 @@ function buildConfig(answers: Record<string, unknown>, projectName: string): Con
     hasWorkflow: (answers.hasWorkflow as boolean) ?? false,
     workflowFile: (answers.workflowFile as string) ?? null,
     workflowSource: (answers.workflowSource as 'project' | 'general' | null) ?? null,
+    hasProjectFramework: (answers.hasProjectFramework as boolean) ?? false,
     syncSkills: (answers.syncSkills as boolean) ?? false,
     skills: (answers.skills as string[]) ?? [],
     lastSync: new Date().toISOString(),

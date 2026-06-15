@@ -34,6 +34,7 @@ function answers(overrides: Partial<Answers> = {}): Answers {
     hasWorkflow: true,
     workflowSource: 'general',
     workflowFile: 'base-workflow',
+    hasProjectFramework: false,
     frameworks: ['angular-guidelines'],
     packages: ['tailwind'],
     agents: ['claude-code'],

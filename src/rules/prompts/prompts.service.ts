@@ -57,8 +57,9 @@ export class PromptService {
     if (architectureResult === null) return null;
     const { hasArchitecture, architectureSource, architectureFile } = architectureResult;
 
-    const frameworks = await this.stepFrameworks(architecture);
-    if (frameworks === null) return null;
+    const frameworksResult = await this.stepFrameworks(architecture, projectName);
+    if (frameworksResult === null) return null;
+    const { frameworks, hasProjectFramework } = frameworksResult;
 
     const packages = await this.stepPackages(architecture);
     if (packages === null) return null;
@@ -80,6 +81,7 @@ export class PromptService {
       hasWorkflow,
       workflowSource,
       workflowFile,
+      hasProjectFramework,
       frameworks,
       packages,
       agents: [],
@@ -262,10 +264,21 @@ export class PromptService {
   // ---- Step 4: Framework selection ----
 
   /**
-   * Framework selection. Frontend/Backend use radio (single choice),
-   * Fullstack uses multiselect (multiple frameworks from the fullstack directory only).
+   * Framework selection. Project override (single framework.md file) takes priority.
+   * Otherwise frontend/backend use radio (single choice),
+   * fullstack uses multiselect (multiple frameworks from the fullstack directory only).
    */
-  private async stepFrameworks(architecture: Architecture): Promise<string[] | null> {
+  private async stepFrameworks(
+    architecture: Architecture,
+    projectName: string,
+  ): Promise<{ frameworks: string[]; hasProjectFramework: boolean } | null> {
+    // Priority 1: project override — single framework.md file
+    const hasProject = await this.discovery.hasProjectOverride(projectName, 'framework.md');
+
+    if (hasProject) {
+      return { frameworks: [], hasProjectFramework: true };
+    }
+
     const available = await this.discovery.listFrameworks(architecture);
 
     if (available.length === 0) {
@@ -281,7 +294,7 @@ export class PromptService {
         return null;
       }
 
-      return [];
+      return { frameworks: [], hasProjectFramework: false };
     }
 
     const options = available.map((name) => ({ value: name, label: name }));
@@ -297,7 +310,7 @@ export class PromptService {
         return null;
       }
 
-      return choices;
+      return { frameworks: choices, hasProjectFramework: false };
     }
 
     const choice = await select({
@@ -310,7 +323,7 @@ export class PromptService {
       return null;
     }
 
-    return [choice];
+    return { frameworks: [choice], hasProjectFramework: false };
   }
 
   // ---- Step 5: Package selection ----

@@ -31,7 +31,7 @@ export class CompilerService {
       await this.compileWorkflow(answers, projectName),
       await this.compileSpec(projectName),
       await this.compileArchitecture(answers, projectName),
-      ...(await this.compileFrameworks(answers)),
+      ...(await this.compileFrameworks(answers, projectName)),
       await this.compilePackageRules(answers),
     ];
 
@@ -88,8 +88,14 @@ export class CompilerService {
     return { filename: 'architecture.md', content };
   }
 
-  /** Frameworks: one file per selected framework. Filename = original template name. */
-  private async compileFrameworks(answers: Answers): Promise<CompiledFile[]> {
+  /** Frameworks: project override → general frameworks folder. */
+  private async compileFrameworks(answers: Answers, projectName: string): Promise<CompiledFile[]> {
+    if (answers.hasProjectFramework) {
+      const content = await this.discovery.getProjectOverride(projectName, 'framework.md');
+      if (content === null) return [];
+      return [{ filename: 'framework.md', content }];
+    }
+
     const results: CompiledFile[] = [];
     for (const name of answers.frameworks) {
       const content = await this.discovery.getTemplateContent(
