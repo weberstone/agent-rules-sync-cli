@@ -34,7 +34,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
 
   if (ctx.hasUserprompt) {
     rows.push({
-      priority: '1 (CRITICAL)',
+      priority: '1',
       file: 'userprompt.md',
       description: 'AI persona and role definition',
     });
@@ -74,7 +74,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
 
   if (ctx.hasPackageRules) {
     rows.push({
-      priority: '6 (OPTIONAL)',
+      priority: '6',
       file: 'package-rules.md',
       description: 'Tool-specific rules',
     });

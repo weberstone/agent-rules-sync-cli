@@ -41,7 +41,7 @@ describe('generateClaudeMd', () => {
 
   it('includes all priority rows when all files present', () => {
     const { content } = generateClaudeMd(fullContext)[0];
-    expect(content).toContain('| 1 (CRITICAL)');
+    expect(content).toContain('| 1');
     expect(content).toContain('userprompt.md');
     expect(content).toContain('| 2');
     expect(content).toContain('workflow.md');
@@ -51,7 +51,7 @@ describe('generateClaudeMd', () => {
     expect(content).toContain('architecture.md');
     expect(content).toContain('| 5');
     expect(content).toContain('angular-guidelines.md');
-    expect(content).toContain('| 6 (OPTIONAL)');
+    expect(content).toContain('| 6');
     expect(content).toContain('package-rules.md');
   });
 
@@ -146,7 +146,7 @@ describe('generateAgentsMd', () => {
 
   it('includes priority table', () => {
     const { content } = generateAgentsMd(fullContext)[0];
-    expect(content).toContain('| 1 (CRITICAL)');
+    expect(content).toContain('| 1');
     expect(content).toContain('## Working agreements');
   });
 
