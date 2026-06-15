@@ -200,6 +200,75 @@ describe('getTemplateContent', () => {
   });
 });
 
+// ---- listUserprompts ----
+
+describe('listUserprompts', () => {
+  it('returns userprompt names without .md extension', async () => {
+    await createFile(
+      path.join(rulesDir, 'frontend', 'userprompts', 'frontend-expert.md'),
+      '# Expert',
+    );
+    await createFile(
+      path.join(rulesDir, 'frontend', 'userprompts', 'react-specialist.md'),
+      '# React',
+    );
+    const result = await service.listUserprompts('frontend');
+    expect(result).toEqual(expect.arrayContaining(['frontend-expert', 'react-specialist']));
+    expect(result).toHaveLength(2);
+  });
+
+  it('returns empty array when userprompts directory does not exist', async () => {
+    const result = await service.listUserprompts('frontend');
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when userprompts directory is empty', async () => {
+    await fs.mkdir(path.join(rulesDir, 'frontend', 'userprompts'), { recursive: true });
+    const result = await service.listUserprompts('frontend');
+    expect(result).toEqual([]);
+  });
+
+  it('ignores non-.md files', async () => {
+    await createFile(path.join(rulesDir, 'frontend', 'userprompts', 'expert.md'), '# Expert');
+    await createFile(path.join(rulesDir, 'frontend', 'userprompts', 'notes.txt'), 'notes');
+    const result = await service.listUserprompts('frontend');
+    expect(result).toEqual(['expert']);
+  });
+});
+
+// ---- getUserpromptContent ----
+
+describe('getUserpromptContent', () => {
+  it('returns content of a userprompt file', async () => {
+    await createFile(
+      path.join(rulesDir, 'backend', 'userprompts', 'nodejs-expert.md'),
+      '# Node.js Expert Persona',
+    );
+    const result = await service.getUserpromptContent('backend', 'nodejs-expert');
+    expect(result).toBe('# Node.js Expert Persona');
+  });
+
+  it('returns null when file does not exist', async () => {
+    const result = await service.getUserpromptContent('frontend', 'nonexistent');
+    expect(result).toBe(null);
+  });
+
+  it('returns null when file is empty', async () => {
+    await createFile(path.join(rulesDir, 'frontend', 'userprompts', 'empty.md'), '');
+    const result = await service.getUserpromptContent('frontend', 'empty');
+    expect(result).toBe(null);
+  });
+
+  it('works for fullstack architecture', async () => {
+    await createFile(
+      path.join(rulesDir, 'fullstack', 'userprompts', 'fullstack-dev.md'),
+      '# Fullstack Persona',
+    );
+    const result = await service.getUserpromptContent('fullstack', 'fullstack-dev');
+    expect(result).toBe('# Fullstack Persona');
+  });
+});
+
 // ---- isFileNonEmpty ----
 
 describe('isFileNonEmpty', () => {

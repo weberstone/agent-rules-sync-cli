@@ -28,6 +28,8 @@ export interface Config {
   packages: string[];
   agents: string[];
   hasUserprompt: boolean;
+  userpromptFile: string | null;
+  userpromptSource: 'project' | 'general' | null;
   syncSkills: boolean;
   skills: string[];
   lastSync: string;

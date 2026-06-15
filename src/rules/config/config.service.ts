@@ -32,6 +32,8 @@ const REQUIRED_FIELDS: ReadonlyArray<keyof Config> = [
   'packages',
   'agents',
   'hasUserprompt',
+  'userpromptFile',
+  'userpromptSource',
   'syncSkills',
   'skills',
   'lastSync',
@@ -142,6 +144,18 @@ export class ConfigService {
       throw new Error('"hasUserprompt" must be a boolean');
     }
 
+    if (obj.userpromptFile !== null && typeof obj.userpromptFile !== 'string') {
+      throw new Error('"userpromptFile" must be a string or null');
+    }
+
+    if (
+      obj.userpromptSource !== null &&
+      obj.userpromptSource !== 'project' &&
+      obj.userpromptSource !== 'general'
+    ) {
+      throw new Error('"userpromptSource" must be "project", "general", or null');
+    }
+
     if (typeof obj.syncSkills !== 'boolean') {
       throw new Error('"syncSkills" must be a boolean');
     }
@@ -167,6 +181,8 @@ export class ConfigService {
     const result = { ...obj };
     if (!('syncSkills' in result)) result.syncSkills = false;
     if (!('skills' in result)) result.skills = [];
+    if (!('userpromptFile' in result)) result.userpromptFile = null;
+    if (!('userpromptSource' in result)) result.userpromptSource = null;
     return result;
   }
 }

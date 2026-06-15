@@ -11,6 +11,8 @@ function mockDiscovery(overrides: Record<string, unknown> = {}) {
     getProjectOverride: vi.fn().mockResolvedValue(null),
     getTemplateContent: vi.fn().mockResolvedValue(null),
     getArchFile: vi.fn().mockResolvedValue(null),
+    listUserprompts: vi.fn().mockResolvedValue([]),
+    getUserpromptContent: vi.fn().mockResolvedValue(null),
     isFileNonEmpty: vi.fn().mockResolvedValue(false),
     ...overrides,
   };
@@ -21,6 +23,7 @@ function answers(overrides: Partial<Answers> = {}): Answers {
     architecture: 'frontend',
     hasUserprompt: true,
     userpromptSource: 'general',
+    userpromptFile: 'frontend-expert',
     frameworks: ['angular-guidelines'],
     packages: ['tailwind'],
     workflowSource: 'general',
@@ -40,10 +43,8 @@ describe('compile', () => {
         .fn()
         .mockResolvedValueOnce('# Project Spec') // spec
         .mockResolvedValueOnce('# Project Arch'), // architecture
-      getArchFile: vi
-        .fn()
-        .mockResolvedValueOnce('# Userprompt') // userprompt general
-        .mockResolvedValueOnce('# Workflow'), // workflow general
+      getUserpromptContent: vi.fn().mockResolvedValueOnce('# Userprompt'), // userprompt general
+      getArchFile: vi.fn().mockResolvedValueOnce('# Workflow'), // workflow general
       getTemplateContent: vi
         .fn()
         .mockResolvedValueOnce('# Framework') // frameworks
@@ -68,10 +69,8 @@ describe('compile', () => {
         .fn()
         .mockResolvedValueOnce(null) // spec: not found
         .mockResolvedValueOnce('# Arch'), // architecture
-      getArchFile: vi
-        .fn()
-        .mockResolvedValueOnce('# Userprompt')
-        .mockResolvedValueOnce('# Workflow'),
+      getUserpromptContent: vi.fn().mockResolvedValueOnce('# Userprompt'),
+      getArchFile: vi.fn().mockResolvedValueOnce('# Workflow'),
       getTemplateContent: vi
         .fn()
         .mockResolvedValueOnce('# Framework')
@@ -128,7 +127,7 @@ describe('compile', () => {
         .mockResolvedValueOnce('# Project Workflow') // 1st: workflow (project)
         .mockResolvedValueOnce('# Spec') // 2nd: spec
         .mockResolvedValueOnce('# Arch'), // 3rd: architecture
-      getArchFile: vi.fn().mockResolvedValueOnce('# Userprompt'), // 1st: userprompt (general)
+      getUserpromptContent: vi.fn().mockResolvedValueOnce('# Userprompt'), // userprompt (general)
       getTemplateContent: vi
         .fn()
         .mockResolvedValueOnce('# Framework')
@@ -144,10 +143,8 @@ describe('compile', () => {
   it('handles multiple frameworks for fullstack', async () => {
     const discovery = mockDiscovery({
       getProjectOverride: vi.fn().mockResolvedValueOnce('# Spec').mockResolvedValueOnce('# Arch'),
-      getArchFile: vi
-        .fn()
-        .mockResolvedValueOnce('# Userprompt')
-        .mockResolvedValueOnce('# Workflow'),
+      getUserpromptContent: vi.fn().mockResolvedValueOnce('# Userprompt'),
+      getArchFile: vi.fn().mockResolvedValueOnce('# Workflow'),
       getTemplateContent: vi
         .fn()
         .mockResolvedValueOnce('# Angular') // framework 1
@@ -173,10 +170,8 @@ describe('compile', () => {
   it('skips package-rules when nothing selected', async () => {
     const discovery = mockDiscovery({
       getProjectOverride: vi.fn().mockResolvedValueOnce('# Spec').mockResolvedValueOnce('# Arch'),
-      getArchFile: vi
-        .fn()
-        .mockResolvedValueOnce('# Userprompt')
-        .mockResolvedValueOnce('# Workflow'),
+      getUserpromptContent: vi.fn().mockResolvedValueOnce('# Userprompt'),
+      getArchFile: vi.fn().mockResolvedValueOnce('# Workflow'),
       getTemplateContent: vi.fn().mockResolvedValueOnce('# Framework'),
     });
 
@@ -188,10 +183,8 @@ describe('compile', () => {
   it('compiles package-rules with header and concatenation', async () => {
     const discovery = mockDiscovery({
       getProjectOverride: vi.fn().mockResolvedValueOnce('# Spec').mockResolvedValueOnce('# Arch'),
-      getArchFile: vi
-        .fn()
-        .mockResolvedValueOnce('# Userprompt')
-        .mockResolvedValueOnce('# Workflow'),
+      getUserpromptContent: vi.fn().mockResolvedValueOnce('# Userprompt'),
+      getArchFile: vi.fn().mockResolvedValueOnce('# Workflow'),
       getTemplateContent: vi
         .fn()
         .mockResolvedValueOnce('# Framework')

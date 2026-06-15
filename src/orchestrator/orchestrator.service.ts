@@ -248,7 +248,7 @@ export class OrchestratorService {
 
     let userpromptSource: 'project' | 'general' | null = null;
     if (config.hasUserprompt) {
-      userpromptSource = hasProjectUserprompt ? 'project' : 'general';
+      userpromptSource = hasProjectUserprompt ? 'project' : (config.userpromptSource ?? 'general');
     }
 
     let workflowSource: 'project' | 'general' | null = null;
@@ -262,6 +262,7 @@ export class OrchestratorService {
       architecture: arch,
       hasUserprompt: config.hasUserprompt,
       userpromptSource,
+      userpromptFile: config.userpromptFile ?? null,
       frameworks: config.frameworks,
       packages: config.packages,
       workflowSource,
@@ -328,24 +329,40 @@ export class OrchestratorService {
     const arch = rulesAnswers.architecture;
     const projectName = this.projectName;
 
-    // userprompt conflict
+    // userprompt conflict: project override file vs general userprompts/ folder
     const hasProjectUserprompt = await this.discovery.hasProjectOverride(
       projectName,
       'userprompt.md',
     );
-    const hasGeneralUserprompt = (await this.discovery.getArchFile(arch, 'userprompt.md')) !== null;
+    const generalUserprompts = await this.discovery.listUserprompts(arch);
+    const hasGeneralUserprompts = generalUserprompts.length > 0;
 
-    if (hasProjectUserprompt && hasGeneralUserprompt) {
+    if (hasProjectUserprompt && hasGeneralUserprompts) {
       const choice = await select({
-        message: 'userprompt.md exists in both project and general. Which one to use?',
+        message:
+          'userprompt exists in both project (userprompt.md) and general (userprompts/). Which one to use?',
         options: [
-          { value: 'project', label: 'Project version' },
-          { value: 'general', label: 'General version' },
+          { value: 'project', label: 'Project version (userprompt.md)' },
+          { value: 'general', label: 'General (choose from userprompts/)' },
         ],
       });
       if (!isCancel(choice)) {
-        rulesAnswers.userpromptSource = choice as 'project' | 'general';
-        rulesAnswers.hasUserprompt = true;
+        if (choice === 'project') {
+          rulesAnswers.userpromptSource = 'project';
+          rulesAnswers.userpromptFile = null;
+          rulesAnswers.hasUserprompt = true;
+        } else {
+          const fileOptions = generalUserprompts.map((name) => ({ value: name, label: name }));
+          const fileChoice = await select({
+            message: 'Select a userprompt from the general folder:',
+            options: fileOptions,
+          });
+          if (!isCancel(fileChoice)) {
+            rulesAnswers.userpromptSource = 'general';
+            rulesAnswers.userpromptFile = fileChoice;
+            rulesAnswers.hasUserprompt = true;
+          }
+        }
       }
     }
 
@@ -544,6 +561,8 @@ function buildConfig(answers: Record<string, unknown>, projectName: string): Con
     packages: (answers.packages as string[]) ?? [],
     agents: (answers.agents as string[]) ?? [],
     hasUserprompt: (answers.hasUserprompt as boolean) ?? false,
+    userpromptFile: (answers.userpromptFile as string) ?? null,
+    userpromptSource: (answers.userpromptSource as 'project' | 'general' | null) ?? null,
     syncSkills: (answers.syncSkills as boolean) ?? false,
     skills: (answers.skills as string[]) ?? [],
     lastSync: new Date().toISOString(),

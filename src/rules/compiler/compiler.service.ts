@@ -38,7 +38,7 @@ export class CompilerService {
     return results.filter((f): f is CompiledFile => f !== null);
   }
 
-  /** Userprompt: project override → general template → skip. */
+  /** Userprompt: project override → general userprompts folder → skip. */
   private async compileUserprompt(
     answers: Answers,
     projectName: string,
@@ -48,7 +48,9 @@ export class CompilerService {
     const content =
       answers.userpromptSource === 'project'
         ? await this.discovery.getProjectOverride(projectName, 'userprompt.md')
-        : await this.discovery.getArchFile(answers.architecture, 'userprompt.md');
+        : answers.userpromptFile
+          ? await this.discovery.getUserpromptContent(answers.architecture, answers.userpromptFile)
+          : null;
 
     if (content === null) return null;
 

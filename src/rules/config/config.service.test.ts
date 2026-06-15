@@ -16,6 +16,8 @@ const validConfig: Config = {
   packages: ['tailwind', 'typescript'],
   agents: ['claude-code', 'cursor'],
   hasUserprompt: true,
+  userpromptFile: 'frontend-expert',
+  userpromptSource: 'general',
   syncSkills: true,
   skills: ['angular-developer'],
   lastSync: '2026-06-14T12:00:00Z',
@@ -148,6 +150,8 @@ describe('backward compatibility', () => {
     expect(result).not.toBe(null);
     expect(result!.syncSkills).toBe(false);
     expect(result!.skills).toEqual([]);
+    expect(result!.userpromptFile).toBe(null);
+    expect(result!.userpromptSource).toBe(null);
   });
 });
 

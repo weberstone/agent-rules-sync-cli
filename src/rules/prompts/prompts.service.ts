@@ -51,7 +51,7 @@ export class PromptService {
 
     const userpromptResult = await this.stepUserprompt(architecture, projectName);
     if (userpromptResult === null) return null;
-    const { hasUserprompt, userpromptSource } = userpromptResult;
+    const { hasUserprompt, userpromptSource, userpromptFile } = userpromptResult;
 
     const frameworks = await this.stepFrameworks(architecture);
     if (frameworks === null) return null;
@@ -68,6 +68,7 @@ export class PromptService {
       architecture,
       hasUserprompt,
       userpromptSource,
+      userpromptFile,
       frameworks,
       packages,
       workflowSource,
@@ -133,8 +134,8 @@ export class PromptService {
   // ---- Step 3b: Userprompt check ----
 
   /**
-   * Check for userprompt.md (project override → general template).
-   * If not found anywhere, warn and ask whether to continue.
+   * Check for userprompt — project override (single file) → general folder (multiple files).
+   * If neither has content, warn and ask whether to continue.
    */
   private async stepUserprompt(
     architecture: Architecture,
@@ -142,25 +143,41 @@ export class PromptService {
   ): Promise<{
     hasUserprompt: boolean;
     userpromptSource: 'project' | 'general' | null;
+    userpromptFile: string | null;
   } | null> {
+    // Priority 1: project override — single userprompt.md file
     const hasProject = await this.discovery.hasProjectOverride(projectName, 'userprompt.md');
 
     if (hasProject) {
-      return { hasUserprompt: true, userpromptSource: 'project' };
+      return { hasUserprompt: true, userpromptSource: 'project', userpromptFile: null };
     }
 
-    const generalContent = await this.discovery.getArchFile(architecture, 'userprompt.md');
+    // Priority 2: scan context/rules/<arch>/userprompts/ folder
+    const available = await this.discovery.listUserprompts(architecture);
 
-    if (generalContent !== null) {
-      return { hasUserprompt: true, userpromptSource: 'general' };
+    if (available.length > 0) {
+      const options = available.map((name) => ({ value: name, label: name }));
+
+      const choice = await select({
+        message: '🧠 Select an AI persona (userprompt):',
+        options,
+      });
+
+      if (isCancelSignal(choice)) {
+        cancel('🚫 Cancelled by user.');
+        return null;
+      }
+
+      return { hasUserprompt: true, userpromptSource: 'general', userpromptFile: choice };
     }
 
+    // Priority 3: nothing found — warn and offer to skip
     const proceed = await confirm({
       message:
-        `🧠 Userprompt file not found.\n` +
+        `🧠 No userprompt files found.\n` +
         C.yellow(
           '   It is highly recommended to define the AI persona.\n' +
-            `   Create context/rules/${architecture}/userprompt.md`,
+            `   Add .md files to context/rules/${architecture}/userprompts/`,
         ) +
         `\n   Continue without it?`,
     });
@@ -170,7 +187,7 @@ export class PromptService {
       return null;
     }
 
-    return { hasUserprompt: false, userpromptSource: null };
+    return { hasUserprompt: false, userpromptSource: null, userpromptFile: null };
   }
 
   // ---- Step 4: Framework selection ----
