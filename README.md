@@ -2,6 +2,12 @@
 <p align="center">
   <img src="https://github.com/user-attachments/assets/bb442028-f137-4e8f-b905-f795a6177788" alt="AI Agent Context Sync CLI" width="100%">
 </p>
+<p align="center">
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%3E%3D18.0-brightgreen?style=flat-square&logo=nodedotjs" alt="Node Version"></a>
+  <img src="https://img.shields.io/badge/Ecosystem-Cursor%20%7C%20Claude%20%7C%20Gemini-blue?style=flat-square" alt="Supported Agents">
+  <a href="https://github.com/weberstone/agent-context-sync-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-gray.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://github.com/weberstone/agent-context-sync-cli/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome"></a>
+</p>
 
 <p align="center"><b>
 Centralized, modular CLI tool to sync AI coding agents rules & skills across repositories.</b>
