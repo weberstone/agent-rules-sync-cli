@@ -33,6 +33,9 @@ export interface Config {
   hasArchitecture: boolean;
   architectureFile: string | null;
   architectureSource: 'project' | 'general' | null;
+  hasWorkflow: boolean;
+  workflowFile: string | null;
+  workflowSource: 'project' | 'general' | null;
   syncSkills: boolean;
   skills: string[];
   lastSync: string;

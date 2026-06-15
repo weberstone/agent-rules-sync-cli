@@ -246,20 +246,10 @@ export class OrchestratorService {
       config.projectName,
       'architecture.md',
     );
-    const hasGeneralWorkflow = await this.discovery.isFileNonEmpty(
-      `${this.rulesDir}/${arch}/workflow.md`,
-    );
 
     let userpromptSource: 'project' | 'general' | null = null;
     if (config.hasUserprompt) {
       userpromptSource = hasProjectUserprompt ? 'project' : (config.userpromptSource ?? 'general');
-    }
-
-    let workflowSource: 'project' | 'general' | null = null;
-    if (hasProjectWorkflow) {
-      workflowSource = 'project';
-    } else if (hasGeneralWorkflow) {
-      workflowSource = 'general';
     }
 
     let architectureSource: 'project' | 'general' | null = null;
@@ -267,6 +257,11 @@ export class OrchestratorService {
       architectureSource = hasProjectArchitecture
         ? 'project'
         : (config.architectureSource ?? 'general');
+    }
+
+    let workflowSource: 'project' | 'general' | null = null;
+    if (config.hasWorkflow) {
+      workflowSource = hasProjectWorkflow ? 'project' : (config.workflowSource ?? 'general');
     }
 
     return {
@@ -277,9 +272,11 @@ export class OrchestratorService {
       hasArchitecture: config.hasArchitecture,
       architectureSource,
       architectureFile: config.architectureFile ?? null,
+      hasWorkflow: config.hasWorkflow,
+      workflowSource,
+      workflowFile: config.workflowFile ?? null,
       frameworks: config.frameworks,
       packages: config.packages,
-      workflowSource,
       agents: config.agents,
       syncSkills: config.syncSkills,
       skills: config.skills,
@@ -414,20 +411,37 @@ export class OrchestratorService {
       }
     }
 
-    // workflow conflict
+    // workflow conflict: project override file vs general workflows/ folder
     const hasProjectWf = await this.discovery.hasProjectOverride(projectName, 'workflow.md');
-    const hasGeneralWf = (await this.discovery.getArchFile(arch, 'workflow.md')) !== null;
+    const generalWorkflows = await this.discovery.listWorkflows(arch);
+    const hasGeneralWorkflows = generalWorkflows.length > 0;
 
-    if (hasProjectWf && hasGeneralWf) {
+    if (hasProjectWf && hasGeneralWorkflows) {
       const choice = await select({
-        message: 'workflow.md exists in both project and general. Which one to use?',
+        message:
+          'workflow.md exists in both project (workflow.md) and general (workflows/). Which one to use?',
         options: [
-          { value: 'project', label: 'Project version' },
-          { value: 'general', label: 'General version' },
+          { value: 'project', label: 'Project version (workflow.md)' },
+          { value: 'general', label: 'General (choose from workflows/)' },
         ],
       });
       if (!isCancel(choice)) {
-        rulesAnswers.workflowSource = choice as 'project' | 'general';
+        if (choice === 'project') {
+          rulesAnswers.workflowSource = 'project';
+          rulesAnswers.workflowFile = null;
+          rulesAnswers.hasWorkflow = true;
+        } else {
+          const fileOptions = generalWorkflows.map((name) => ({ value: name, label: name }));
+          const fileChoice = await select({
+            message: 'Select a workflow from the general folder:',
+            options: fileOptions,
+          });
+          if (!isCancel(fileChoice)) {
+            rulesAnswers.workflowSource = 'general';
+            rulesAnswers.workflowFile = fileChoice;
+            rulesAnswers.hasWorkflow = true;
+          }
+        }
       }
     }
   }
@@ -597,6 +611,9 @@ function buildConfig(answers: Record<string, unknown>, projectName: string): Con
     hasArchitecture: (answers.hasArchitecture as boolean) ?? false,
     architectureFile: (answers.architectureFile as string) ?? null,
     architectureSource: (answers.architectureSource as 'project' | 'general' | null) ?? null,
+    hasWorkflow: (answers.hasWorkflow as boolean) ?? false,
+    workflowFile: (answers.workflowFile as string) ?? null,
+    workflowSource: (answers.workflowSource as 'project' | 'general' | null) ?? null,
     syncSkills: (answers.syncSkills as boolean) ?? false,
     skills: (answers.skills as string[]) ?? [],
     lastSync: new Date().toISOString(),

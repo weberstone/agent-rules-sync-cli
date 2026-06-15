@@ -21,6 +21,9 @@ const validConfig: Config = {
   hasArchitecture: true,
   architectureFile: 'base-architecture',
   architectureSource: 'general',
+  hasWorkflow: true,
+  workflowFile: 'base-workflow',
+  workflowSource: 'general',
   syncSkills: true,
   skills: ['angular-developer'],
   lastSync: '2026-06-14T12:00:00Z',
@@ -158,6 +161,9 @@ describe('backward compatibility', () => {
     expect(result!.hasArchitecture).toBe(false);
     expect(result!.architectureFile).toBe(null);
     expect(result!.architectureSource).toBe(null);
+    expect(result!.hasWorkflow).toBe(false);
+    expect(result!.workflowFile).toBe(null);
+    expect(result!.workflowSource).toBe(null);
   });
 });
 

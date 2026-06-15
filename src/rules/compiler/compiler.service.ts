@@ -130,16 +130,18 @@ export class CompilerService {
     return { filename: 'package-rules.md', content };
   }
 
-  /** Workflow: project override → general template → skip. */
+  /** Workflow: project override → general workflows folder → skip. */
   private async compileWorkflow(
     answers: Answers,
     projectName: string,
   ): Promise<CompiledFile | null> {
+    if (!answers.hasWorkflow) return null;
+
     const content =
       answers.workflowSource === 'project'
         ? await this.discovery.getProjectOverride(projectName, 'workflow.md')
-        : answers.workflowSource === 'general'
-          ? await this.discovery.getArchFile(answers.architecture, 'workflow.md')
+        : answers.workflowFile
+          ? await this.discovery.getWorkflowContent(answers.architecture, answers.workflowFile)
           : null;
 
     if (content === null) return null;

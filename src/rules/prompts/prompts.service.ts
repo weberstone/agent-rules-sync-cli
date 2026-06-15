@@ -63,8 +63,9 @@ export class PromptService {
     const packages = await this.stepPackages(architecture);
     if (packages === null) return null;
 
-    const workflowSource = await this.stepWorkflow(architecture, projectName);
-    if (workflowSource === null) return null;
+    const workflowResult = await this.stepWorkflow(architecture, projectName);
+    if (workflowResult === null) return null;
+    const { hasWorkflow, workflowSource, workflowFile } = workflowResult;
 
     outro('✨ Configuration complete!');
 
@@ -76,9 +77,11 @@ export class PromptService {
       hasArchitecture,
       architectureSource,
       architectureFile,
+      hasWorkflow,
+      workflowSource,
+      workflowFile,
       frameworks,
       packages,
-      workflowSource,
       agents: [],
     };
   }
@@ -351,26 +354,52 @@ export class PromptService {
   // ---- Step 6: Workflow check ----
 
   /**
-   * Check for workflow.md. Project override takes precedence over general.
-   * If neither exists, warn and ask whether to continue.
+   * Check for workflow — project override (single file) → general folder (multiple files).
+   * If neither has content, warn and ask whether to continue.
    */
   private async stepWorkflow(
     architecture: Architecture,
     projectName: string,
-  ): Promise<'project' | 'general' | null> {
+  ): Promise<{
+    hasWorkflow: boolean;
+    workflowSource: 'project' | 'general' | null;
+    workflowFile: string | null;
+  } | null> {
+    // Priority 1: project override — single workflow.md file
     const hasProject = await this.discovery.hasProjectOverride(projectName, 'workflow.md');
 
-    if (hasProject) return 'project';
+    if (hasProject) {
+      return { hasWorkflow: true, workflowSource: 'project', workflowFile: null };
+    }
 
-    const generalContent = await this.discovery.getArchFile(architecture, 'workflow.md');
+    // Priority 2: scan context/rules/<arch>/workflows/ folder
+    const available = await this.discovery.listWorkflows(architecture);
 
-    if (generalContent !== null) return 'general';
+    if (available.length > 0) {
+      const options = available.map((name) => ({ value: name, label: name }));
 
+      const choice = await select({
+        message: '⚙️  Select a workflow protocol:',
+        options,
+      });
+
+      if (isCancelSignal(choice)) {
+        cancel('🚫 Cancelled by user.');
+        return null;
+      }
+
+      return { hasWorkflow: true, workflowSource: 'general', workflowFile: choice };
+    }
+
+    // Priority 3: nothing found — warn and offer to skip
     const proceed = await confirm({
       message:
-        `⚙️  Workflow file not found.\n` +
-        C.dim(`   Create context/rules/${architecture}/workflow.md`) +
-        `\n   Continue without workflow rules?`,
+        `⚙️  No workflow files found.\n` +
+        C.yellow(
+          '   It is recommended to define a workflow protocol.\n' +
+            `   Add .md files to context/rules/${architecture}/workflows/`,
+        ) +
+        `\n   Continue without it?`,
     });
 
     if (isCancelSignal(proceed) || !proceed) {
@@ -378,6 +407,6 @@ export class PromptService {
       return null;
     }
 
-    return null;
+    return { hasWorkflow: false, workflowSource: null, workflowFile: null };
   }
 }

@@ -269,6 +269,63 @@ describe('getUserpromptContent', () => {
   });
 });
 
+// ---- listWorkflows ----
+
+describe('listWorkflows', () => {
+  it('returns workflow names without .md extension', async () => {
+    await createFile(
+      path.join(rulesDir, 'frontend', 'workflows', 'base-workflow.md'),
+      '# Workflow',
+    );
+    await createFile(path.join(rulesDir, 'frontend', 'workflows', 'agile-workflow.md'), '# Agile');
+    const result = await service.listWorkflows('frontend');
+    expect(result).toEqual(expect.arrayContaining(['base-workflow', 'agile-workflow']));
+    expect(result).toHaveLength(2);
+  });
+
+  it('returns empty array when workflows directory does not exist', async () => {
+    const result = await service.listWorkflows('frontend');
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when workflows directory is empty', async () => {
+    await fs.mkdir(path.join(rulesDir, 'frontend', 'workflows'), { recursive: true });
+    const result = await service.listWorkflows('frontend');
+    expect(result).toEqual([]);
+  });
+
+  it('ignores non-.md files', async () => {
+    await createFile(path.join(rulesDir, 'frontend', 'workflows', 'base-workflow.md'), '# WF');
+    await createFile(path.join(rulesDir, 'frontend', 'workflows', 'notes.txt'), 'notes');
+    const result = await service.listWorkflows('frontend');
+    expect(result).toEqual(['base-workflow']);
+  });
+});
+
+// ---- getWorkflowContent ----
+
+describe('getWorkflowContent', () => {
+  it('returns content of a workflow file', async () => {
+    await createFile(
+      path.join(rulesDir, 'backend', 'workflows', 'base-workflow.md'),
+      '# Backend Workflow',
+    );
+    const result = await service.getWorkflowContent('backend', 'base-workflow');
+    expect(result).toBe('# Backend Workflow');
+  });
+
+  it('returns null when file does not exist', async () => {
+    const result = await service.getWorkflowContent('frontend', 'nonexistent');
+    expect(result).toBe(null);
+  });
+
+  it('returns null when file is empty', async () => {
+    await createFile(path.join(rulesDir, 'frontend', 'workflows', 'empty.md'), '');
+    const result = await service.getWorkflowContent('frontend', 'empty');
+    expect(result).toBe(null);
+  });
+});
+
 // ---- isFileNonEmpty ----
 
 describe('isFileNonEmpty', () => {

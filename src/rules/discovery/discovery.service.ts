@@ -132,6 +132,23 @@ export class DiscoveryService {
     return this.readIfNonEmpty(filePath);
   }
 
+  /**
+   * List `.md` files in `context/rules/<arch>/workflows/`, sans extension.
+   * Returns [] if the directory doesn't exist or is empty.
+   */
+  async listWorkflows(arch: Architecture): Promise<string[]> {
+    return this.listDir(path.join(this.rulesDir, arch, 'workflows'));
+  }
+
+  /**
+   * Read a specific workflow file from `context/rules/<arch>/workflows/<name>.md`.
+   * Returns `null` if the file doesn't exist or is empty.
+   */
+  async getWorkflowContent(arch: Architecture, name: string): Promise<string | null> {
+    const filePath = path.join(this.rulesDir, arch, 'workflows', `${name}.md`);
+    return this.readIfNonEmpty(filePath);
+  }
+
   /** Check if a file exists and has non-whitespace content. */
   async isFileNonEmpty(filePath: string): Promise<boolean> {
     const content = await this.readIfNonEmpty(filePath);

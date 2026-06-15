@@ -37,6 +37,9 @@ const REQUIRED_FIELDS: ReadonlyArray<keyof Config> = [
   'hasArchitecture',
   'architectureFile',
   'architectureSource',
+  'hasWorkflow',
+  'workflowFile',
+  'workflowSource',
   'syncSkills',
   'skills',
   'lastSync',
@@ -175,6 +178,22 @@ export class ConfigService {
       throw new Error('"architectureSource" must be "project", "general", or null');
     }
 
+    if (typeof obj.hasWorkflow !== 'boolean') {
+      throw new Error('"hasWorkflow" must be a boolean');
+    }
+
+    if (obj.workflowFile !== null && typeof obj.workflowFile !== 'string') {
+      throw new Error('"workflowFile" must be a string or null');
+    }
+
+    if (
+      obj.workflowSource !== null &&
+      obj.workflowSource !== 'project' &&
+      obj.workflowSource !== 'general'
+    ) {
+      throw new Error('"workflowSource" must be "project", "general", or null');
+    }
+
     if (typeof obj.syncSkills !== 'boolean') {
       throw new Error('"syncSkills" must be a boolean');
     }
@@ -205,6 +224,9 @@ export class ConfigService {
     if (!('hasArchitecture' in result)) result.hasArchitecture = false;
     if (!('architectureFile' in result)) result.architectureFile = null;
     if (!('architectureSource' in result)) result.architectureSource = null;
+    if (!('hasWorkflow' in result)) result.hasWorkflow = false;
+    if (!('workflowFile' in result)) result.workflowFile = null;
+    if (!('workflowSource' in result)) result.workflowSource = null;
     return result;
   }
 }

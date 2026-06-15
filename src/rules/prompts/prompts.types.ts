@@ -41,6 +41,8 @@ export interface Answers {
   architectureFile: string | null;
   frameworks: string[];
   packages: string[];
+  hasWorkflow: boolean;
   workflowSource: 'project' | 'general' | null;
+  workflowFile: string | null;
   agents: string[];
 }
