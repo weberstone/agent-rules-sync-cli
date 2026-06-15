@@ -160,7 +160,8 @@ export class OrchestratorService {
     // 8. Grand finale (TTY only — non-TTY gets plain output)
     if (process.stdin.isTTY) {
       this.showFinale(ruleFiles, writtenFiles, copiedSkills);
-      this.showGitignoreWarning();
+      await this.showGitignoreWarning();
+      this.showStarRequest();
     } else {
       console.log('Rules synchronized successfully.');
       if (ruleFiles.length > 0) console.log(`.agents/rules/: ${ruleFiles.length} files`);
@@ -603,22 +604,30 @@ export class OrchestratorService {
     const pc = this.colors;
     const inGitignore = await this.output.isInGitignore('ai-context-config.json');
     if (!inGitignore) {
-      const lines: string[] = [
-        this.hr(pc.boldYellow),
-        this.padLine('  ⚠️  IMPORTANT', pc.boldYellow),
-        '',
-        this.padLine('  Add "ai-context-config.json"', pc.yellow),
-        this.padLine('  to your .gitignore file', pc.yellow),
-        this.padLine('  to keep it private.', pc.yellow),
-      ];
-
-      outro(lines.join('\n'));
+      console.log('');
+      console.log(this.padLine('ℹ️  "ai-context-config.json" was created to store your preferences.', pc.dim));
+      console.log(this.padLine('   If you don\'t want to commit it, add it to your .gitignore file.', pc.dim));
     }
+  }
+
+  private showStarRequest(): void {
+    const pc = this.colors;
+    console.log('');
+    console.log(this.hr(pc.boldMagenta));
+    console.log(this.padLine('🌟 LOVE THIS TOOL?', pc.boldMagenta));
+    console.log('');
+    console.log(this.padLine('If this tool helps you build better projects,', pc.magenta));
+    console.log(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
+    console.log('');
+    console.log(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', pc.boldCyan));
+    console.log(this.hr(pc.boldMagenta));
+    console.log('');
   }
 
   private colors = {
     dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
     cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
+    boldCyan: (s: string) => `\x1b[1m\x1b[36m${s}\x1b[39m\x1b[22m`,
     green: (s: string) => `\x1b[32m${s}\x1b[39m`,
     magenta: (s: string) => `\x1b[35m${s}\x1b[39m`,
     yellow: (s: string) => `\x1b[33m${s}\x1b[39m`,
