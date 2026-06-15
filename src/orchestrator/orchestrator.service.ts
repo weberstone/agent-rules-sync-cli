@@ -605,8 +605,12 @@ export class OrchestratorService {
     const inGitignore = await this.output.isInGitignore('ai-context-config.json');
     if (!inGitignore) {
       console.log('');
-      console.log(this.padLine('ℹ️  "ai-context-config.json" was created to store your preferences.', pc.dim));
-      console.log(this.padLine('   If you don\'t want to commit it, add it to your .gitignore file.', pc.dim));
+      console.log(
+        this.padLine('ℹ️  "ai-context-config.json" was created to store your preferences.', pc.dim),
+      );
+      console.log(
+        this.padLine("   If you don't want to commit it, add it to your .gitignore file.", pc.dim),
+      );
     }
   }
 
@@ -619,7 +623,9 @@ export class OrchestratorService {
     console.log(this.padLine('If this tool helps you build better projects,', pc.magenta));
     console.log(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
     console.log('');
-    console.log(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', pc.boldCyan));
+    console.log(
+      this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', pc.boldCyan),
+    );
     console.log(this.hr(pc.boldMagenta));
     console.log('');
   }

@@ -36,4 +36,12 @@ export interface AgentFile {
 export type AgentGenerator = (ctx: GeneratorContext) => AgentFile[];
 
 /** Supported agent keys — must match `GeneratorRegistry` entries and `AVAILABLE_AGENTS`. */
-export type AgentKey = 'claude-code' | 'cursor' | 'gemini' | 'gemini-cli' | 'codex' | 'continue';
+export type AgentKey =
+  | 'claude-code'
+  | 'cursor'
+  | 'gemini'
+  | 'gemini-cli'
+  | 'codex'
+  | 'continue'
+  | 'github-copilot'
+  | 'windsurf';

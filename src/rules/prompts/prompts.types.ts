@@ -20,7 +20,9 @@ export const AVAILABLE_AGENTS: readonly AgentOption[] = [
   { value: 'gemini', label: 'Gemini' },
   { value: 'gemini-cli', label: 'Gemini CLI' },
   { value: 'codex', label: 'OpenAI Codex' },
+  { value: 'github-copilot', label: 'GitHub Copilot' },
   { value: 'continue', label: 'Continue' },
+  { value: 'windsurf', label: 'Windsurf / Devin' },
 ];
 
 /**

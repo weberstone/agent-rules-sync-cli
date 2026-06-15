@@ -216,6 +216,60 @@ function generateAgentsMd(ctx: GeneratorContext): AgentFile[] {
   return [{ filename: 'AGENTS.md', content }];
 }
 
+// ---- GitHub Copilot: .github/copilot-instructions.md ----
+// Format: Plain Markdown with inline priority table, no YAML frontmatter.
+// Source: docs/agents/github-copilot.md
+
+function generateCopilotInstructions(ctx: GeneratorContext): AgentFile[] {
+  const rows = buildRows(ctx);
+
+  const header = '| Priority | File | Description |\n' + '| :--- | :--- | :--- |';
+
+  const body = rows
+    .map((r) => `| ${r.priority} | \`.agents/rules/${r.file}\` | ${r.description} |`)
+    .join('\n');
+
+  const table = `${header}\n${body}`;
+
+  const content =
+    `# Project AI Rules\n\n` +
+    `This project uses a centralized AI rule management system.\n` +
+    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    `${table}\n\n` +
+    `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
+    footer();
+
+  return [{ filename: '.github/copilot-instructions.md', content }];
+}
+
+// ---- Windsurf / Devin: .devin/rules/00-agent-rules.md ----
+// Format: YAML frontmatter (trigger: always_on) + Markdown numbered list.
+// Source: docs/agents/windsurf.md
+
+function generateWindsurfRules(ctx: GeneratorContext): AgentFile[] {
+  const rows = buildRows(ctx);
+
+  const lines = rows.map(
+    (r) => `${r.priority.split(' ')[0]}. \`.agents/rules/${r.file}\` — ${r.description}`,
+  );
+
+  const content =
+    `---\n` +
+    `trigger: always_on\n` +
+    `description: "Project AI agent rules and conventions — always loaded into every session"\n` +
+    `---\n\n` +
+    `# Project AI Rules\n\n` +
+    `This project uses a centralized AI rule management system.\n` +
+    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    `${lines.join('\n')}\n\n` +
+    `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
+    footer();
+
+  return [{ filename: '.devin/rules/00-agent-rules.md', content }];
+}
+
 // ---- Continue.dev: .continue/rules/00-agent-rules.md ----
 // Format: YAML frontmatter (no globs = always apply) + Markdown.
 // Source: docs/agents/continue.md
@@ -260,7 +314,9 @@ export class GeneratorRegistry {
     this.generators.set('gemini-cli', generateGeminiMd);
     this.generators.set('gemini', generateGeminiMd);
     this.generators.set('codex', generateAgentsMd);
+    this.generators.set('github-copilot', generateCopilotInstructions);
     this.generators.set('continue', generateContinueRules);
+    this.generators.set('windsurf', generateWindsurfRules);
   }
 
   /** Look up a generator by agent key. Returns `undefined` for unknown keys. */
@@ -276,5 +332,7 @@ export {
   generateCursorRules,
   generateGeminiMd,
   generateAgentsMd,
+  generateCopilotInstructions,
   generateContinueRules,
+  generateWindsurfRules,
 };
