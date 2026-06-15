@@ -49,13 +49,16 @@ An interactive CLI to generate and synchronize global or project-specific develo
 
 1. **Fork** this repository to your account (via the GitHub interface or using the GitHub CLI):
 ```bash
-   gh repo fork your-username/agent-context-sync-cli --clone=true
-   ```
+gh repo fork your-username/agent-context-sync-cli --clone=true
+```
 2. If you forked via the browser, clone your repository locally:
 ```bash
-   git clone [https://github.com/your-username/agent-context-sync-cli.git](https://github.com/your-username/agent-context-sync-cli.git)
-   cd agent-context-sync-cli
-   ```
+git clone https://github.com/your-username/agent-context-sync-cli.git
+```
+
+```bash
+cd agent-context-sync-cli
+```
 3. Populate the `context/` folder with your global rules and skills (in `context/rules/` and `context/skills/`), adhering to the project architecture. Describe project specifics in `context/projects/`. Commit and push the changes to your repository.
 
 ---
@@ -68,13 +71,15 @@ You can use the utility locally (for developing and testing your rules) or remot
 
 1. Build the project from source within the utility folder:
 ```bash
-   npm run build
-   ```
+npm run build
+```
 2. Navigate to the root of your working project (where you want to install the rules) and run the script, specifying the path to the built `index.js`:
 ```bash
-   cd ../path-to-your-target-project
-   node ../agent-context-sync-cli/dist/index.js
-   ```
+cd ../path-to-your-target-project
+```
+```bash
+node ../agent-context-sync-cli/dist/index.js
+```
 
 #### Option B: Remote Execution (For Teams and Daily Use)
 
@@ -166,7 +171,7 @@ The developer forms rule sets within these folders based on the specifics of the
 
 ```text
 /context/
-├── rules/
+└── rules/
 	├── frontend/
 	├── backend/
 	└── fullstack/
@@ -215,7 +220,6 @@ Specific in-depth recommendations for working with the main project framework (A
 * **Repository path:** `/context/<stack>/frameworks/<framework>.md`
 * **Build result:** Compiles into the `.agents/rules/<framework>.md` file on the client.
 * **Constraint:** Each file in the folder must have a unique name.
-
 
 
 #### Project Rules
