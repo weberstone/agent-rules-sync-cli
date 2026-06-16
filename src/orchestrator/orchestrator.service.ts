@@ -625,9 +625,7 @@ export class OrchestratorService {
     console.log(this.padLine('If this tool helps you build better projects,', pc.magenta));
     console.log(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
     console.log('');
-    console.log(
-      this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan),
-    );
+    console.log(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan));
     console.log(this.hr(boldMagenta));
     console.log('');
   }

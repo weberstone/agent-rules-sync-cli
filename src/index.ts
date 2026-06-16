@@ -4,7 +4,13 @@
  * Run via: `node dist/index.js` or `npx agent-context-sync-cli`
  */
 
-import { getTargetDir, getProjectName, getRulesDir, getSkillsDir, getProjectsDir } from './utils/paths.js';
+import {
+  getTargetDir,
+  getProjectName,
+  getRulesDir,
+  getSkillsDir,
+  getProjectsDir,
+} from './utils/paths.js';
 import { ConfigService } from './rules/config/config.service.js';
 import { DiscoveryService } from './rules/discovery/discovery.service.js';
 import { PromptService } from './rules/prompts/prompts.service.js';

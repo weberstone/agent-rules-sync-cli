@@ -26,7 +26,14 @@ const VALID_ARCHITECTURES: ReadonlySet<string> = new Set<Architecture>([
 
 const VALID_SOURCES: ReadonlySet<string | null> = new Set([null, 'project', 'general']);
 
-type FieldType = 'string' | 'number' | 'boolean' | 'string[]' | 'string|null' | 'architecture' | 'source';
+type FieldType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'string[]'
+  | 'string|null'
+  | 'architecture'
+  | 'source';
 
 interface FieldDef {
   type: FieldType;
@@ -35,26 +42,26 @@ interface FieldDef {
 
 /** Single source of truth for every config field — drives both validation and defaults. */
 const CONFIG_SCHEMA: Record<string, FieldDef> = {
-  version:            { type: 'number',       default: 1 },
-  projectName:        { type: 'string',       default: '' },
-  architecture:       { type: 'architecture', default: 'frontend' },
-  frameworks:         { type: 'string[]',     default: [] },
-  packages:           { type: 'string[]',     default: [] },
-  agents:             { type: 'string[]',     default: [] },
-  hasUserprompt:      { type: 'boolean',      default: false },
-  userpromptFile:     { type: 'string|null',  default: null },
-  userpromptSource:   { type: 'source',       default: null },
-  hasArchitecture:    { type: 'boolean',      default: false },
-  architectureFile:   { type: 'string|null',  default: null },
-  architectureSource: { type: 'source',       default: null },
-  hasWorkflow:        { type: 'boolean',      default: false },
-  workflowFile:       { type: 'string|null',  default: null },
-  workflowSource:     { type: 'source',       default: null },
-  hasProjectFramework:{ type: 'boolean',      default: false },
-  hasProjectPackages: { type: 'boolean',      default: false },
-  syncSkills:         { type: 'boolean',      default: false },
-  skills:             { type: 'string[]',     default: [] },
-  lastSync:           { type: 'string',       default: '' },
+  version: { type: 'number', default: 1 },
+  projectName: { type: 'string', default: '' },
+  architecture: { type: 'architecture', default: 'frontend' },
+  frameworks: { type: 'string[]', default: [] },
+  packages: { type: 'string[]', default: [] },
+  agents: { type: 'string[]', default: [] },
+  hasUserprompt: { type: 'boolean', default: false },
+  userpromptFile: { type: 'string|null', default: null },
+  userpromptSource: { type: 'source', default: null },
+  hasArchitecture: { type: 'boolean', default: false },
+  architectureFile: { type: 'string|null', default: null },
+  architectureSource: { type: 'source', default: null },
+  hasWorkflow: { type: 'boolean', default: false },
+  workflowFile: { type: 'string|null', default: null },
+  workflowSource: { type: 'source', default: null },
+  hasProjectFramework: { type: 'boolean', default: false },
+  hasProjectPackages: { type: 'boolean', default: false },
+  syncSkills: { type: 'boolean', default: false },
+  skills: { type: 'string[]', default: [] },
+  lastSync: { type: 'string', default: '' },
 };
 
 /**
@@ -195,7 +202,7 @@ export class ConfigService {
    */
   private applyDefaults(data: unknown): Record<string, unknown> {
     if (typeof data !== 'object' || data === null) return data as Record<string, unknown>;
-    const result = { ...data as Record<string, unknown> };
+    const result = { ...(data as Record<string, unknown>) };
     for (const [field, value] of Object.entries(BACKWARD_COMPAT_DEFAULTS)) {
       if (!(field in result)) {
         result[field] = value;

@@ -155,10 +155,7 @@ describe('hasProjectOverride', () => {
 
 describe('getProjectOverride', () => {
   it('returns file content when override exists', async () => {
-    await createFile(
-      path.join(projectsDir, 'my-app', 'rules', 'spec.md'),
-      '# Custom Spec',
-    );
+    await createFile(path.join(projectsDir, 'my-app', 'rules', 'spec.md'), '# Custom Spec');
     const result = await service.getProjectOverride('my-app', 'spec.md');
     expect(result).toBe('# Custom Spec');
   });

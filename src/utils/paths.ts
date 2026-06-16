@@ -119,9 +119,7 @@ async function findDefaultContextRoot(startDir: string): Promise<string> {
       if (stat.isDirectory()) return path.join(dir, 'context');
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw new Error(
-          `Failed to read directory "${candidate}": ${(err as Error).message}`,
-        );
+        throw new Error(`Failed to read directory "${candidate}": ${(err as Error).message}`);
       }
     }
     dir = path.dirname(dir);
