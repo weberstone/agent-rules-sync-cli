@@ -1,0 +1,8 @@
+# React Rules
+
+1. Components & Architecture: Functional components ONLY—Class components are COMPLETELY FORBIDDEN. Default to Server Components for all data-heavy logic. Use the `"use client"` directive ONLY at the lowest possible leaf nodes for interactivity. Keep component files small (under 150 lines) to maintain focus and AI context efficiency.
+2. Compiler & Optimization: BANNED: Manual memoization via `useMemo`, `useCallback`, or `React.memo` (the React Compiler handles this automatically). Components MUST be pure and side-effect free during render. Derive data during rendering; NEVER sync state across components using `useEffect`.
+3. Server Actions & Data: Async Server Components are MANDATORY for all data fetching—eliminate client-side waterfalls. Treat Server Actions as secure API endpoints; authorization and Zod-based validation are FORBIDDEN to be skipped. Use `Suspense` for all async boundaries and streaming.
+4. State & Interactivity: Use the `use` hook for unwrapping Promises and Context. For mutations, use `useActionState` and `useOptimistic` for state management and feedback. Prefer Zustand for complex client-side state; BAN over-engineered Redux/Context providers for simple state sharing.
+5. Forms & Native APIs: Enforce native `<form>` behavior with Server Actions. Use `useFormStatus` for pending UI. MANDATORY: All form inputs and Server Action parameters must be validated via Zod schemas.
+6. TypeScript & Quality: Enforce strict type checking. Use `satisfies` for config objects and ensure all components have explicit return types (`JSX.Element` or `React.Node`). Completely BAN the `any` type. Accessibility (ARIA, focus management) must meet WCAG AA standards by default.

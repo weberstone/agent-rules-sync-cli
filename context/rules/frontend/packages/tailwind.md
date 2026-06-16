@@ -1,5 +1,4 @@
 ## Tailwind CSS
-
-- **Primary Styling Tool**: Use Tailwind CSS utility classes as the primary method for layouts, spacing, and responsive design.
-- Integrate Tailwind seamlessly with the Angular Material tokens mentioned above.
-- Avoid writing custom `.scss` & `.css` unless absolutely necessary for complex animations or deeply nested component overrides that Tailwind cannot handle efficiently.
+* **Primary Tool**: Use Tailwind utilities for layouts, spacing, and responsive design.
+* **Integration**: Connect Tailwind seamlessly with Angular Material tokens.
+* **No Custom CSS/SCSS**: BANNED, except for complex animations or deep component overrides.
