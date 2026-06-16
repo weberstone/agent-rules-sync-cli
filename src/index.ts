@@ -4,8 +4,7 @@
  * Run via: `node dist/index.js` or `npx agent-context-sync-cli`
  */
 
-import path from 'node:path';
-import { getTargetDir, getProjectName, getRulesDir } from './utils/paths.js';
+import { getTargetDir, getProjectName, getRulesDir, getSkillsDir, getProjectsDir } from './utils/paths.js';
 import { ConfigService } from './rules/config/config.service.js';
 import { DiscoveryService } from './rules/discovery/discovery.service.js';
 import { PromptService } from './rules/prompts/prompts.service.js';
@@ -19,14 +18,15 @@ import { OrchestratorService } from './orchestrator/orchestrator.service.js';
 const targetDir = getTargetDir();
 const projectName = getProjectName();
 const rulesDir = getRulesDir();
-const skillsDir = path.join(rulesDir, '..', 'skills');
+const skillsDir = getSkillsDir();
+const projectsDir = getProjectsDir();
 
 const configService = new ConfigService(targetDir);
-const discovery = new DiscoveryService(rulesDir);
+const discovery = new DiscoveryService(rulesDir, projectsDir);
 const promptService = new PromptService(discovery);
 const compiler = new CompilerService(discovery);
 const output = new OutputService(targetDir);
-const skillsDiscovery = new SkillsDiscoveryService(skillsDir);
+const skillsDiscovery = new SkillsDiscoveryService(skillsDir, projectsDir);
 const skillsPrompt = new SkillsPromptService(skillsDiscovery);
 const skillsCompiler = new SkillsCompilerService(targetDir);
 

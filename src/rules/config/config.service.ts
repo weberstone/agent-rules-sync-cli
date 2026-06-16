@@ -24,28 +24,57 @@ const VALID_ARCHITECTURES: ReadonlySet<string> = new Set<Architecture>([
   'fullstack',
 ]);
 
-const REQUIRED_FIELDS: ReadonlyArray<keyof Config> = [
-  'version',
-  'projectName',
-  'architecture',
-  'frameworks',
-  'packages',
-  'agents',
-  'hasUserprompt',
-  'userpromptFile',
-  'userpromptSource',
-  'hasArchitecture',
-  'architectureFile',
-  'architectureSource',
-  'hasWorkflow',
-  'workflowFile',
-  'workflowSource',
-  'hasProjectFramework',
-  'hasProjectPackages',
-  'syncSkills',
-  'skills',
-  'lastSync',
-];
+const VALID_SOURCES: ReadonlySet<string | null> = new Set([null, 'project', 'general']);
+
+type FieldType = 'string' | 'number' | 'boolean' | 'string[]' | 'string|null' | 'architecture' | 'source';
+
+interface FieldDef {
+  type: FieldType;
+  default: unknown;
+}
+
+/** Single source of truth for every config field — drives both validation and defaults. */
+const CONFIG_SCHEMA: Record<string, FieldDef> = {
+  version:            { type: 'number',       default: 1 },
+  projectName:        { type: 'string',       default: '' },
+  architecture:       { type: 'architecture', default: 'frontend' },
+  frameworks:         { type: 'string[]',     default: [] },
+  packages:           { type: 'string[]',     default: [] },
+  agents:             { type: 'string[]',     default: [] },
+  hasUserprompt:      { type: 'boolean',      default: false },
+  userpromptFile:     { type: 'string|null',  default: null },
+  userpromptSource:   { type: 'source',       default: null },
+  hasArchitecture:    { type: 'boolean',      default: false },
+  architectureFile:   { type: 'string|null',  default: null },
+  architectureSource: { type: 'source',       default: null },
+  hasWorkflow:        { type: 'boolean',      default: false },
+  workflowFile:       { type: 'string|null',  default: null },
+  workflowSource:     { type: 'source',       default: null },
+  hasProjectFramework:{ type: 'boolean',      default: false },
+  hasProjectPackages: { type: 'boolean',      default: false },
+  syncSkills:         { type: 'boolean',      default: false },
+  skills:             { type: 'string[]',     default: [] },
+  lastSync:           { type: 'string',       default: '' },
+};
+
+/**
+ * Fields added after the initial release. Older configs may lack them —
+ * fill in safe defaults so validation passes.
+ */
+const BACKWARD_COMPAT_DEFAULTS: Record<string, unknown> = {
+  syncSkills: false,
+  skills: [],
+  userpromptFile: null,
+  userpromptSource: null,
+  hasArchitecture: false,
+  architectureFile: null,
+  architectureSource: null,
+  hasWorkflow: false,
+  workflowFile: null,
+  workflowSource: null,
+  hasProjectFramework: false,
+  hasProjectPackages: false,
+};
 
 export class ConfigService {
   private readonly configPath: string;
@@ -103,11 +132,10 @@ export class ConfigService {
   }
 
   /**
-   * Runtime validation of parsed JSON.
+   * Schema-driven validation.
    *
-   * Checks that all required fields are present and have the correct types.
-   * Uses manual type-checking (typeof, Array.isArray, Set.has) instead of a
-   * schema library — the config is flat, so this adds zero dependencies.
+   * Each field is checked against its type descriptor in CONFIG_SCHEMA.
+   * Adding a new field only requires adding one entry to CONFIG_SCHEMA.
    *
    * @throws with a descriptive message on validation failure.
    */
@@ -118,127 +146,61 @@ export class ConfigService {
 
     const obj = data as Record<string, unknown>;
 
-    for (const field of REQUIRED_FIELDS) {
+    for (const [field, def] of Object.entries(CONFIG_SCHEMA)) {
       if (!(field in obj)) {
         throw new Error(`missing required field "${field}"`);
       }
-    }
-
-    if (typeof obj.version !== 'number') {
-      throw new Error('"version" must be a number');
-    }
-
-    if (typeof obj.projectName !== 'string') {
-      throw new Error('"projectName" must be a string');
-    }
-
-    if (!VALID_ARCHITECTURES.has(obj.architecture as string)) {
-      throw new Error(`"architecture" must be one of: ${[...VALID_ARCHITECTURES].join(', ')}`);
-    }
-
-    if (!Array.isArray(obj.frameworks) || !obj.frameworks.every((f) => typeof f === 'string')) {
-      throw new Error('"frameworks" must be an array of strings');
-    }
-
-    if (!Array.isArray(obj.packages) || !obj.packages.every((p) => typeof p === 'string')) {
-      throw new Error('"packages" must be an array of strings');
-    }
-
-    if (!Array.isArray(obj.agents) || !obj.agents.every((a) => typeof a === 'string')) {
-      throw new Error('"agents" must be an array of strings');
-    }
-
-    if (typeof obj.hasUserprompt !== 'boolean') {
-      throw new Error('"hasUserprompt" must be a boolean');
-    }
-
-    if (obj.userpromptFile !== null && typeof obj.userpromptFile !== 'string') {
-      throw new Error('"userpromptFile" must be a string or null');
-    }
-
-    if (
-      obj.userpromptSource !== null &&
-      obj.userpromptSource !== 'project' &&
-      obj.userpromptSource !== 'general'
-    ) {
-      throw new Error('"userpromptSource" must be "project", "general", or null');
-    }
-
-    if (typeof obj.hasArchitecture !== 'boolean') {
-      throw new Error('"hasArchitecture" must be a boolean');
-    }
-
-    if (obj.architectureFile !== null && typeof obj.architectureFile !== 'string') {
-      throw new Error('"architectureFile" must be a string or null');
-    }
-
-    if (
-      obj.architectureSource !== null &&
-      obj.architectureSource !== 'project' &&
-      obj.architectureSource !== 'general'
-    ) {
-      throw new Error('"architectureSource" must be "project", "general", or null');
-    }
-
-    if (typeof obj.hasWorkflow !== 'boolean') {
-      throw new Error('"hasWorkflow" must be a boolean');
-    }
-
-    if (obj.workflowFile !== null && typeof obj.workflowFile !== 'string') {
-      throw new Error('"workflowFile" must be a string or null');
-    }
-
-    if (
-      obj.workflowSource !== null &&
-      obj.workflowSource !== 'project' &&
-      obj.workflowSource !== 'general'
-    ) {
-      throw new Error('"workflowSource" must be "project", "general", or null');
-    }
-
-    if (typeof obj.hasProjectFramework !== 'boolean') {
-      throw new Error('"hasProjectFramework" must be a boolean');
-    }
-
-    if (typeof obj.hasProjectPackages !== 'boolean') {
-      throw new Error('"hasProjectPackages" must be a boolean');
-    }
-
-    if (typeof obj.syncSkills !== 'boolean') {
-      throw new Error('"syncSkills" must be a boolean');
-    }
-
-    if (!Array.isArray(obj.skills) || !obj.skills.every((s) => typeof s === 'string')) {
-      throw new Error('"skills" must be an array of strings');
-    }
-
-    if (typeof obj.lastSync !== 'string') {
-      throw new Error('"lastSync" must be a string');
+      this.validateField(field, obj[field], def.type);
     }
 
     return obj as unknown as Config;
   }
 
+  private validateField(field: string, value: unknown, type: FieldType): void {
+    switch (type) {
+      case 'string':
+        if (typeof value !== 'string') throw new Error(`"${field}" must be a string`);
+        break;
+      case 'number':
+        if (typeof value !== 'number') throw new Error(`"${field}" must be a number`);
+        break;
+      case 'boolean':
+        if (typeof value !== 'boolean') throw new Error(`"${field}" must be a boolean`);
+        break;
+      case 'string[]':
+        if (!Array.isArray(value) || !value.every((e) => typeof e === 'string')) {
+          throw new Error(`"${field}" must be an array of strings`);
+        }
+        break;
+      case 'string|null':
+        if (value !== null && typeof value !== 'string') {
+          throw new Error(`"${field}" must be a string or null`);
+        }
+        break;
+      case 'architecture':
+        if (!VALID_ARCHITECTURES.has(value as string)) {
+          throw new Error(`"${field}" must be one of: ${[...VALID_ARCHITECTURES].join(', ')}`);
+        }
+        break;
+      case 'source':
+        if (!VALID_SOURCES.has(value as string | null)) {
+          throw new Error(`"${field}" must be "project", "general", or null`);
+        }
+        break;
+    }
+  }
+
   /**
-   * Backward compatibility: old configs may not have Phase 2 fields.
-   * Fill in safe defaults so validation passes.
+   * Backward compatibility: fill in defaults for fields absent from older configs.
    */
   private applyDefaults(data: unknown): Record<string, unknown> {
     if (typeof data !== 'object' || data === null) return data as Record<string, unknown>;
-    const obj = data as Record<string, unknown>;
-    const result = { ...obj };
-    if (!('syncSkills' in result)) result.syncSkills = false;
-    if (!('skills' in result)) result.skills = [];
-    if (!('userpromptFile' in result)) result.userpromptFile = null;
-    if (!('userpromptSource' in result)) result.userpromptSource = null;
-    if (!('hasArchitecture' in result)) result.hasArchitecture = false;
-    if (!('architectureFile' in result)) result.architectureFile = null;
-    if (!('architectureSource' in result)) result.architectureSource = null;
-    if (!('hasWorkflow' in result)) result.hasWorkflow = false;
-    if (!('workflowFile' in result)) result.workflowFile = null;
-    if (!('workflowSource' in result)) result.workflowSource = null;
-    if (!('hasProjectFramework' in result)) result.hasProjectFramework = false;
-    if (!('hasProjectPackages' in result)) result.hasProjectPackages = false;
+    const result = { ...data as Record<string, unknown> };
+    for (const [field, value] of Object.entries(BACKWARD_COMPAT_DEFAULTS)) {
+      if (!(field in result)) {
+        result[field] = value;
+      }
+    }
     return result;
   }
 }

@@ -4,6 +4,7 @@
 /build
 
 # ai
+.context-primary/*
 .agents/*
 docs/*
 CLAUDE.md

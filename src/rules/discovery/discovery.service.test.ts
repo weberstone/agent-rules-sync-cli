@@ -6,12 +6,14 @@ import { DiscoveryService } from './discovery.service.js';
 
 let tmpDir: string;
 let rulesDir: string;
+let projectsDir: string;
 let service: DiscoveryService;
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-rules-test-'));
   rulesDir = path.join(tmpDir, 'rules');
-  service = new DiscoveryService(rulesDir);
+  projectsDir = path.join(tmpDir, 'projects');
+  service = new DiscoveryService(rulesDir, projectsDir);
 });
 
 afterEach(async () => {
@@ -126,7 +128,7 @@ describe('listPackages', () => {
 
 describe('hasProjectOverride', () => {
   it('returns true when file exists and is non-empty', async () => {
-    await createFile(path.join(rulesDir, '..', 'projects', 'my-app', 'rules', 'spec.md'), '# Spec');
+    await createFile(path.join(projectsDir, 'my-app', 'rules', 'spec.md'), '# Spec');
     const result = await service.hasProjectOverride('my-app', 'spec.md');
     expect(result).toBe(true);
   });
@@ -137,13 +139,13 @@ describe('hasProjectOverride', () => {
   });
 
   it('returns false when file does not exist', async () => {
-    await fs.mkdir(path.join(rulesDir, '..', 'projects', 'my-app', 'rules'), { recursive: true });
+    await fs.mkdir(path.join(projectsDir, 'my-app', 'rules'), { recursive: true });
     const result = await service.hasProjectOverride('my-app', 'spec.md');
     expect(result).toBe(false);
   });
 
   it('returns false when file is empty or whitespace only', async () => {
-    await createFile(path.join(rulesDir, '..', 'projects', 'my-app', 'rules', 'spec.md'), '   ');
+    await createFile(path.join(projectsDir, 'my-app', 'rules', 'spec.md'), '   ');
     const result = await service.hasProjectOverride('my-app', 'spec.md');
     expect(result).toBe(false);
   });
@@ -154,7 +156,7 @@ describe('hasProjectOverride', () => {
 describe('getProjectOverride', () => {
   it('returns file content when override exists', async () => {
     await createFile(
-      path.join(rulesDir, '..', 'projects', 'my-app', 'rules', 'spec.md'),
+      path.join(projectsDir, 'my-app', 'rules', 'spec.md'),
       '# Custom Spec',
     );
     const result = await service.getProjectOverride('my-app', 'spec.md');
@@ -167,7 +169,7 @@ describe('getProjectOverride', () => {
   });
 
   it('returns null when override is empty', async () => {
-    await createFile(path.join(rulesDir, '..', 'projects', 'my-app', 'rules', 'spec.md'), '');
+    await createFile(path.join(projectsDir, 'my-app', 'rules', 'spec.md'), '');
     const result = await service.getProjectOverride('my-app', 'spec.md');
     expect(result).toBe(null);
   });
