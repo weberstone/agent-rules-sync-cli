@@ -351,12 +351,11 @@ export class PromptService {
       return { frameworks: [], hasProjectFramework: false };
     }
 
-    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
-
     if (architecture === 'fullstack') {
+      const multiOptions = available.map((name) => ({ value: name, label: name }));
       const choices = await multiselect({
-        message: '📦 Select frameworks (empty = skip):',
-        options,
+        message: '📦 Select frameworks:',
+        options: multiOptions,
         required: false,
       });
 
@@ -368,6 +367,7 @@ export class PromptService {
       return { frameworks: choices, hasProjectFramework: false };
     }
 
+    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
     const choice = await select({
       message: '📦 Select a framework:',
       options,
@@ -432,10 +432,10 @@ export class PromptService {
       return { packages: [], hasProjectPackages: false };
     }
 
-    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
+    const options = available.map((name) => ({ value: name, label: name }));
 
     const choices = await multiselect({
-      message: '📚 Select packages and tools (empty = skip):',
+      message: '📚 Select packages and tools:',
       options,
       required: false,
     });
