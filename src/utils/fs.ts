@@ -24,16 +24,6 @@ export async function ensureDir(dirPath: string): Promise<void> {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
-/** Check whether a file or directory exists at the given path. */
-export async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.stat(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Type guard for POSIX ENOENT errors (file/directory not found).
  * Use to distinguish "not found" (expected) from real errors like EACCES.

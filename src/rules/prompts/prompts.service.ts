@@ -29,7 +29,10 @@ function isCancelSignal(value: unknown): value is symbol {
 }
 
 export class PromptService {
-  constructor(private readonly discovery: DiscoveryService) {}
+  constructor(
+    private readonly discovery: DiscoveryService,
+    private readonly ctxName: string,
+  ) {}
 
   /**
    * Run the full questionnaire.
@@ -98,7 +101,7 @@ export class PromptService {
     const proceed = await confirm({
       message:
         `📋 No project spec found.\n` +
-        pc.dim(`   Create one at context/projects/${projectName}/rules/spec.md`) +
+        pc.dim(`   Create one at ${this.ctxName}/projects/${projectName}/rules/spec.md`) +
         `\n   Continue without it?`,
     });
 
@@ -114,13 +117,15 @@ export class PromptService {
 
   /**
    * Ask the user to pick an architecture type.
-   * Options are dynamically built from which directories exist in `context/rules/`.
+   * Options are dynamically built from which directories exist in `${this.ctxName}/rules/`.
    */
   private async stepArchitecture(): Promise<Architecture | null> {
     const available = await this.discovery.getAvailableArchitectures();
 
     if (available.length === 0) {
-      cancel('❌ No architecture directories found in context/rules/. At least one is required.');
+      cancel(
+        `❌ No architecture directories found in ${this.ctxName}/rules/. At least one is required.`,
+      );
       return null;
     }
 
@@ -205,7 +210,7 @@ export class PromptService {
         `🧠 No userprompt files found.\n` +
         pc.yellow(
           '   It is highly recommended to define the AI persona.\n' +
-            `   Add .md files to context/rules/${architecture}/userprompts/`,
+            `   Add .md files to ${this.ctxName}/rules/${architecture}/userprompts/`,
         ) +
         `\n   Continue without it?`,
     });
@@ -282,7 +287,7 @@ export class PromptService {
         `🏛️  No architecture files found.\n` +
         pc.yellow(
           '   It is recommended to define architecture guidelines.\n' +
-            `   Add .md files to context/rules/${architecture}/architectures/`,
+            `   Add .md files to ${this.ctxName}/rules/${architecture}/architectures/`,
         ) +
         `\n   Continue without it?`,
     });
@@ -334,7 +339,7 @@ export class PromptService {
       const proceed = await confirm({
         message:
           `📦 No framework rules found.\n` +
-          pc.dim(`   Add .md files to context/rules/${architecture}/frameworks/`) +
+          pc.dim(`   Add .md files to ${this.ctxName}/rules/${architecture}/frameworks/`) +
           `\n   Continue without framework rules?`,
       });
 
@@ -346,12 +351,11 @@ export class PromptService {
       return { frameworks: [], hasProjectFramework: false };
     }
 
-    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
-
     if (architecture === 'fullstack') {
+      const multiOptions = available.map((name) => ({ value: name, label: name }));
       const choices = await multiselect({
-        message: '📦 Select frameworks (empty = skip):',
-        options,
+        message: '📦 Select frameworks:',
+        options: multiOptions,
         required: false,
       });
 
@@ -363,6 +367,7 @@ export class PromptService {
       return { frameworks: choices, hasProjectFramework: false };
     }
 
+    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
     const choice = await select({
       message: '📦 Select a framework:',
       options,
@@ -415,7 +420,7 @@ export class PromptService {
       const proceed = await confirm({
         message:
           `📚 No package rules found.\n` +
-          pc.dim(`   Add .md files to context/rules/${architecture}/packages/`) +
+          pc.dim(`   Add .md files to ${this.ctxName}/rules/${architecture}/packages/`) +
           `\n   Continue without package rules?`,
       });
 
@@ -427,10 +432,10 @@ export class PromptService {
       return { packages: [], hasProjectPackages: false };
     }
 
-    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
+    const options = available.map((name) => ({ value: name, label: name }));
 
     const choices = await multiselect({
-      message: '📚 Select packages and tools (empty = skip):',
+      message: '📚 Select packages and tools:',
       options,
       required: false,
     });
@@ -507,7 +512,7 @@ export class PromptService {
         `⚙️  No workflow files found.\n` +
         pc.yellow(
           '   It is recommended to define a workflow protocol.\n' +
-            `   Add .md files to context/rules/${architecture}/workflows/`,
+            `   Add .md files to ${this.ctxName}/rules/${architecture}/workflows/`,
         ) +
         `\n   Continue without it?`,
     });
