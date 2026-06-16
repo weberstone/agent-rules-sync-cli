@@ -13,6 +13,7 @@
  * Agent specifications are documented in `docs/agents/<agent>.md`.
  */
 
+import { wrapSkills } from '../../output/content-wrapper.js';
 import type { AgentFile, AgentGenerator, GeneratorContext } from './generator.types.js';
 
 // ---- Priority Row Builder (shared across all generators) ----
@@ -96,7 +97,7 @@ function buildSkillsTable(ctx: GeneratorContext): string | null {
     .map((s) => `| ${s.name} | \`@.agents/skills/${s.path.split('/').pop()}\` | ${s.description} |`)
     .join('\n');
 
-  return `## 🛠️ Skills\n\n${header}\n${body}`;
+  return wrapSkills(`## 🛠️ Skills\n\n${header}\n${body}`);
 }
 
 /** Shared footer for all generated agent files. */

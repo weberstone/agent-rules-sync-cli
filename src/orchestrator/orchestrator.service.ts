@@ -37,7 +37,7 @@ import { SkillsDiscoveryService } from '../skills/discovery/skills-discovery.ser
 import { SkillsPromptService } from '../skills/prompts/skills-prompts.service.js';
 import { SkillsCompilerService } from '../skills/compiler/skills-compiler.service.js';
 import type { ParsedSkill } from '../skills/types/skills.types.js';
-import { logError } from '../utils/log.js';
+import { logError, logPlain } from '../utils/log.js';
 import pc from 'picocolors';
 import fs from 'node:fs/promises';
 
@@ -169,10 +169,10 @@ export class OrchestratorService {
       await this.showGitignoreWarning();
       this.showStarRequest();
     } else {
-      console.log('Rules synchronized successfully.');
-      if (ruleFiles.length > 0) console.log(`.agents/rules/: ${ruleFiles.length} files`);
-      if (copiedSkills.length > 0) console.log(`.agents/skills/: ${copiedSkills.length} skills`);
-      if (writtenFiles.length > 0) console.log(`Agent configs: ${writtenFiles.join(', ')}`);
+      logPlain('Rules synchronized successfully.');
+      if (ruleFiles.length > 0) logPlain(`.agents/rules/: ${ruleFiles.length} files`);
+      if (copiedSkills.length > 0) logPlain(`.agents/skills/: ${copiedSkills.length} skills`);
+      if (writtenFiles.length > 0) logPlain(`Agent configs: ${writtenFiles.join(', ')}`);
     }
   }
 
@@ -607,27 +607,27 @@ export class OrchestratorService {
   private async showGitignoreWarning(): Promise<void> {
     const inGitignore = await this.output.isInGitignore('ai-context-config.json');
     if (!inGitignore) {
-      console.log('');
-      console.log(
+      logPlain('');
+      logPlain(
         this.padLine('ℹ️  "ai-context-config.json" was created to store your preferences.', pc.dim),
       );
-      console.log(
+      logPlain(
         this.padLine("   If you don't want to commit it, add it to your .gitignore file.", pc.dim),
       );
     }
   }
 
   private showStarRequest(): void {
-    console.log('');
-    console.log(this.hr(boldMagenta));
-    console.log(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
-    console.log('');
-    console.log(this.padLine('If this tool helps you build better projects,', pc.magenta));
-    console.log(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
-    console.log('');
-    console.log(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan));
-    console.log(this.hr(boldMagenta));
-    console.log('');
+    logPlain('');
+    logPlain(this.hr(boldMagenta));
+    logPlain(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
+    logPlain('');
+    logPlain(this.padLine('If this tool helps you build better projects,', pc.magenta));
+    logPlain(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
+    logPlain('');
+    logPlain(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan));
+    logPlain(this.hr(boldMagenta));
+    logPlain('');
   }
 }
 

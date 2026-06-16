@@ -10,7 +10,9 @@ import {
   getRulesDir,
   getSkillsDir,
   getProjectsDir,
+  getContextDir,
 } from './utils/paths.js';
+import path from 'node:path';
 import { ConfigService } from './rules/config/config.service.js';
 import { DiscoveryService } from './rules/discovery/discovery.service.js';
 import { PromptService } from './rules/prompts/prompts.service.js';
@@ -20,16 +22,18 @@ import { SkillsDiscoveryService } from './skills/discovery/skills-discovery.serv
 import { SkillsPromptService } from './skills/prompts/skills-prompts.service.js';
 import { SkillsCompilerService } from './skills/compiler/skills-compiler.service.js';
 import { OrchestratorService } from './orchestrator/orchestrator.service.js';
+import { logError } from './utils/log.js';
 
 const targetDir = getTargetDir();
 const projectName = getProjectName();
 const rulesDir = getRulesDir();
 const skillsDir = getSkillsDir();
 const projectsDir = getProjectsDir();
+const ctxName = path.basename(getContextDir());
 
 const configService = new ConfigService(targetDir);
 const discovery = new DiscoveryService(rulesDir, projectsDir);
-const promptService = new PromptService(discovery);
+const promptService = new PromptService(discovery, ctxName);
 const compiler = new CompilerService(discovery);
 const output = new OutputService(targetDir);
 const skillsDiscovery = new SkillsDiscoveryService(skillsDir, projectsDir);
@@ -51,6 +55,6 @@ const orchestrator = new OrchestratorService(
 );
 
 orchestrator.run().catch((err) => {
-  console.error('Unexpected error:', err);
+  logError(`Unexpected error: ${(err as Error).message}`);
   process.exit(1);
 });

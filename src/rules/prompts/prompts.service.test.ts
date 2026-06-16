@@ -89,7 +89,7 @@ describe('run', () => {
       .mockResolvedValueOnce(['tailwind', 'typescript']) // packages
       .mockResolvedValueOnce(['claude-code', 'cursor']); // agents
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers).not.toBe(null);
@@ -115,7 +115,7 @@ describe('run', () => {
 
     (mockClack.confirm as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers).toBe(null);
@@ -130,7 +130,7 @@ describe('run', () => {
 
     (mockClack.select as ReturnType<typeof vi.fn>).mockResolvedValueOnce(CANCEL);
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers).toBe(null);
@@ -164,7 +164,7 @@ describe('run', () => {
       .mockResolvedValueOnce(['tailwind']) // packages
       .mockResolvedValueOnce(['claude-code']); // agents
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers!.architecture).toBe('fullstack');
@@ -198,7 +198,7 @@ describe('run', () => {
       .mockResolvedValueOnce('only-node');
     (mockClack.multiselect as ReturnType<typeof vi.fn>).mockResolvedValueOnce(['cursor']);
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers).not.toBe(null);
@@ -240,7 +240,7 @@ describe('run', () => {
       .mockResolvedValueOnce('base-workflow'); // workflow
     (mockClack.multiselect as ReturnType<typeof vi.fn>).mockResolvedValueOnce(['claude-code']);
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers!.frameworks).toEqual([]);
@@ -255,7 +255,7 @@ describe('run', () => {
 
     (mockClack.confirm as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true);
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers).toBe(null);
@@ -289,7 +289,7 @@ describe('run', () => {
       .mockResolvedValueOnce(['typescript']) // packages
       .mockResolvedValueOnce([]); // agents: none
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers!.agents).toEqual([]);
@@ -317,7 +317,7 @@ describe('run', () => {
     (mockClack.select as ReturnType<typeof vi.fn>).mockResolvedValueOnce('frontend');
     (mockClack.multiselect as ReturnType<typeof vi.fn>).mockResolvedValueOnce(['claude-code']);
 
-    const service = new PromptService(discovery as any);
+    const service = new PromptService(discovery as any, 'context');
     const answers = await service.run('my-app');
 
     expect(answers!.userpromptSource).toBe('project');

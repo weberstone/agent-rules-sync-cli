@@ -80,20 +80,10 @@ function stripInlineComment(raw: string): string {
   return raw.slice(0, idx).trimEnd();
 }
 
-/**
- * Read the AGENT_CONTEXT_DIR value, checking in order:
- *  1. process.env.AGENT_CONTEXT_DIR
- *  2. .env file at process.cwd()
- * Returns `null` when neither source provides a value.
- */
-async function resolveContextDirEnv(): Promise<string | null> {
-  if (process.env[ENV_KEY]) {
-    return process.env[ENV_KEY]!;
-  }
-
-  const envFilePath = path.join(process.cwd(), '.env');
+/** Try to read AGENT_CONTEXT_DIR from a .env file at the given path. */
+async function readEnvFile(filePath: string): Promise<string | null> {
   try {
-    const content = await fs.readFile(envFilePath, 'utf-8');
+    const content = await fs.readFile(filePath, 'utf-8');
     const parsed = parseEnvFile(content);
     return parsed[ENV_KEY] ?? null;
   } catch {
@@ -101,29 +91,64 @@ async function resolveContextDirEnv(): Promise<string | null> {
   }
 }
 
-// ---- context root resolution ----
-
 /**
- * Walk up the directory tree from `startDir` until we find a directory
- * containing `context/rules/`. Used as the default fallback.
- *
- * @throws If `context/rules/` is not found — the package is corrupted.
+ * Walk up from `startDir` to find the package root (the directory
+ * containing `context/rules/`). Returns `null` if not found.
  */
-async function findDefaultContextRoot(startDir: string): Promise<string> {
+async function findPackageRoot(startDir: string): Promise<string | null> {
   let dir = startDir;
   const root = path.parse(dir).root;
   while (dir !== root) {
-    const candidate = path.join(dir, 'context', 'rules');
     try {
-      const stat = await fs.stat(candidate);
-      if (stat.isDirectory()) return path.join(dir, 'context');
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw new Error(`Failed to read directory "${candidate}": ${(err as Error).message}`);
-      }
-    }
+      await fs.stat(path.join(dir, 'context', 'rules'));
+      return dir;
+    } catch {}
     dir = path.dirname(dir);
   }
+  return null;
+}
+
+interface EnvResult {
+  value: string;
+  /** The directory the value should be resolved relative to. */
+  baseDir: string;
+}
+
+/**
+ * Read the AGENT_CONTEXT_DIR value, checking in order:
+ *  1. process.env.AGENT_CONTEXT_DIR (resolved against process.cwd())
+ *  2. .env file at process.cwd() — target project (resolved against process.cwd())
+ *  3. .env file at the package root — alongside context/ folders (resolved against package root)
+ * Returns `null` when no source provides a value.
+ */
+async function resolveContextDirEnv(sourceDir: string): Promise<EnvResult | null> {
+  if (process.env[ENV_KEY]) {
+    return { value: process.env[ENV_KEY]!, baseDir: process.cwd() };
+  }
+
+  // 1. Target project .env
+  const cwdValue = await readEnvFile(path.join(process.cwd(), '.env'));
+  if (cwdValue) return { value: cwdValue, baseDir: process.cwd() };
+
+  // 2. Package root .env (alongside context/ and context-primary/ folders)
+  const pkgRoot = await findPackageRoot(sourceDir);
+  if (pkgRoot && pkgRoot !== process.cwd()) {
+    const pkgValue = await readEnvFile(path.join(pkgRoot, '.env'));
+    if (pkgValue) return { value: pkgValue, baseDir: pkgRoot };
+  }
+
+  return null;
+}
+
+// ---- context root resolution ----
+
+/**
+ * Resolve the default context directory by walking up from `startDir`.
+ * Uses `findPackageRoot` — throws if the package is corrupted.
+ */
+async function findDefaultContextRoot(startDir: string): Promise<string> {
+  const pkgRoot = await findPackageRoot(startDir);
+  if (pkgRoot) return path.join(pkgRoot, 'context');
   throw new Error(
     'Cannot find context/rules/ directory. The package may be corrupted — reinstall agent-context-sync-cli.',
   );
@@ -140,10 +165,10 @@ async function findDefaultContextRoot(startDir: string): Promise<string> {
  * Otherwise falls back to walking up from sourceDir to find `context/`.
  */
 async function resolveContextRoot(sourceDir: string): Promise<string> {
-  const envValue = await resolveContextDirEnv();
+  const envResult = await resolveContextDirEnv(sourceDir);
 
-  if (envValue) {
-    const resolved = path.resolve(process.cwd(), envValue);
+  if (envResult) {
+    const resolved = path.resolve(envResult.baseDir, envResult.value);
     const rulesCandidate = path.join(resolved, 'rules');
     try {
       const stat = await fs.stat(rulesCandidate);
@@ -153,7 +178,7 @@ async function resolveContextRoot(sourceDir: string): Promise<string> {
     }
     // Graceful fallback: warn and use default discovery
     console.warn(
-      `[WARNING] AGENT_CONTEXT_DIR is set to "${envValue}" but "${rulesCandidate}" ` +
+      `[WARNING] AGENT_CONTEXT_DIR is set to "${envResult.value}" but "${rulesCandidate}" ` +
         `is not a readable directory. Falling back to default context discovery.`,
     );
   }

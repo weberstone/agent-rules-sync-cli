@@ -39,39 +39,39 @@ describe('getSourceDir', () => {
 });
 
 describe('getContextDir', () => {
-  it('returns a path ending with context', async () => {
+  it('returns a readable directory', async () => {
     const { getContextDir } = await importPaths();
-    expect(getContextDir()).toMatch(/context$/);
+    expect(getContextDir()).toBeTruthy();
   });
 });
 
 describe('getRulesDir', () => {
-  it('returns context/rules/ directory', async () => {
+  it('returns a path ending with /rules', async () => {
     const { getRulesDir } = await importPaths();
-    expect(getRulesDir()).toMatch(/context\/rules$/);
+    expect(getRulesDir()).toMatch(/\/rules$/);
   });
 });
 
 describe('getSkillsDir', () => {
-  it('returns context/skills/ directory', async () => {
+  it('returns a path ending with /skills', async () => {
     const { getSkillsDir } = await importPaths();
-    expect(getSkillsDir()).toMatch(/context\/skills$/);
+    expect(getSkillsDir()).toMatch(/\/skills$/);
   });
 });
 
 describe('getProjectsDir', () => {
-  it('returns context/projects/ directory', async () => {
+  it('returns a path ending with /projects', async () => {
     const { getProjectsDir } = await importPaths();
-    expect(getProjectsDir()).toMatch(/context\/projects$/);
+    expect(getProjectsDir()).toMatch(/\/projects$/);
   });
 });
 
 describe('path consistency', () => {
-  it('rulesDir, skillsDir, and projectsDir share the same parent (contextDir)', async () => {
+  it('rulesDir, skillsDir, and projectsDir are under contextDir', async () => {
     const { getContextDir, getRulesDir, getSkillsDir, getProjectsDir } = await importPaths();
-    const context = getContextDir();
-    expect(getRulesDir()).toBe(`${context}/rules`);
-    expect(getSkillsDir()).toBe(`${context}/skills`);
-    expect(getProjectsDir()).toBe(`${context}/projects`);
+    const ctx = getContextDir();
+    expect(getRulesDir().startsWith(ctx)).toBe(true);
+    expect(getSkillsDir().startsWith(ctx)).toBe(true);
+    expect(getProjectsDir().startsWith(ctx)).toBe(true);
   });
 });

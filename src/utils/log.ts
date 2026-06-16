@@ -9,11 +9,6 @@
 
 import pc from 'picocolors';
 
-/** Green success status — operation completed. */
-export function logSuccess(message: string): void {
-  console.log(pc.green(`[SUCCESS] ${message}`));
-}
-
 /** Yellow warning — non-fatal issue, user can recover. */
 export function logWarning(message: string): void {
   console.log(pc.yellow(`[WARNING] ${message}`));
@@ -24,7 +19,7 @@ export function logError(message: string): void {
   console.error(pc.red(`[ERROR] ${message}`));
 }
 
-/** Blue informational message. */
-export function logInfo(message: string): void {
-  console.log(pc.blue(`[INFO] ${message}`));
+/** Plain output — no prefix, no color. For user-facing UI (art, summaries, etc.). */
+export function logPlain(message: string): void {
+  console.log(message);
 }

@@ -1,16 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { logSuccess, logWarning, logError, logInfo } from './log.js';
-
-describe('logSuccess', () => {
-  it('prints a green success message', () => {
-    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    logSuccess('done');
-    expect(spy).toHaveBeenCalledTimes(1);
-    const output = spy.mock.calls[0][0];
-    expect(output).toContain('done');
-    spy.mockRestore();
-  });
-});
+import { logWarning, logError, logPlain } from './log.js';
 
 describe('logWarning', () => {
   it('prints a yellow warning message', () => {
@@ -34,13 +23,13 @@ describe('logError', () => {
   });
 });
 
-describe('logInfo', () => {
-  it('prints a blue info message', () => {
+describe('logPlain', () => {
+  it('prints a plain message without prefix', () => {
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    logInfo('info');
+    logPlain('hello');
     expect(spy).toHaveBeenCalledTimes(1);
     const output = spy.mock.calls[0][0];
-    expect(output).toContain('info');
+    expect(output).toBe('hello');
     spy.mockRestore();
   });
 });
