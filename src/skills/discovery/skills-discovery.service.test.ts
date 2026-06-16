@@ -82,7 +82,7 @@ describe('listGeneralSkills', () => {
     expect(skills).toEqual([]);
   });
 
-  it('flags name conflicts between folder and file', async () => {
+  it('discovers both folder and file skills with the same name', async () => {
     await createFile(
       path.join(skillsDir, 'my-skill', 'SKILL.md'),
       '---\ndescription: Folder version\n---\n',
@@ -91,8 +91,8 @@ describe('listGeneralSkills', () => {
 
     const skills = await service.listGeneralSkills();
     expect(skills).toHaveLength(2);
-    expect(skills[0].nameConflict).toBe(true);
-    expect(skills[1].nameConflict).toBe(true);
+    expect(skills[0].name).toBe('my-skill');
+    expect(skills[1].name).toBe('my-skill');
   });
 });
 

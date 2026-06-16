@@ -1,6 +1,6 @@
 {
   "name": "agent-context-sync-cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Centralized AI agent rules manager — interactive CLI to generate per-project rule files",
   "type": "module",
   "license": "MIT",

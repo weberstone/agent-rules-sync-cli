@@ -47,7 +47,6 @@ export class SkillsDiscoveryService {
     }
 
     const skills: ParsedSkill[] = [];
-    const seenNames = new Set<string>();
 
     for (const entry of entries) {
       const entryPath = path.join(dirPath, entry);
@@ -62,28 +61,18 @@ export class SkillsDiscoveryService {
         const skillMdPath = path.join(entryPath, 'SKILL.md');
         const skill = await this.parseSkillFile(skillMdPath, source, 'folder', entry, entryPath);
         if (skill) {
-          this.addSkill(skills, seenNames, skill);
+          skills.push(skill);
         }
       } else if (entryStat.isFile() && entry.endsWith('.md')) {
         const baseName = entry.replace(/\.md$/, '');
         const skill = await this.parseSkillFile(entryPath, source, 'file', baseName, entryPath);
         if (skill) {
-          this.addSkill(skills, seenNames, skill);
+          skills.push(skill);
         }
       }
     }
 
     return skills;
-  }
-
-  private addSkill(skills: ParsedSkill[], seenNames: Set<string>, skill: ParsedSkill): void {
-    if (seenNames.has(skill.name)) {
-      skill.nameConflict = true;
-      const existing = skills.find((s) => s.name === skill.name);
-      if (existing) existing.nameConflict = true;
-    }
-    seenNames.add(skill.name);
-    skills.push(skill);
   }
 
   private async parseSkillFile(

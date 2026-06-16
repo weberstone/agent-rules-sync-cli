@@ -19,8 +19,6 @@ export interface ParsedSkill {
   type: 'folder' | 'file';
   /** Absolute path to the skill on disk (file or folder). */
   diskPath: string;
-  /** True if the same name exists as both a folder and a file, requiring user resolution. */
-  nameConflict?: boolean;
 }
 
 /**

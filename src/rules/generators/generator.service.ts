@@ -37,7 +37,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
     rows.push({
       priority: '1',
       file: 'userprompt.md',
-      description: 'AI persona and role definition',
+      description: 'Agent role, persona, and behavioral guidelines',
     });
   }
 
@@ -45,7 +45,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
     rows.push({
       priority: '2',
       file: 'workflow.md',
-      description: 'Interaction protocol, TDD rules, commit standards',
+      description: 'Task execution workflow and interaction protocols',
     });
   }
 
@@ -53,7 +53,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
     rows.push({
       priority: '3',
       file: 'spec.md',
-      description: 'Project-specific stack, folder structure, domain definitions',
+      description: 'Project context, conventions, and domain knowledge',
     });
   }
 
@@ -61,7 +61,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
     rows.push({
       priority: '4',
       file: 'architecture.md',
-      description: 'Architectural principles, SOLID, pattern constraints',
+      description: 'Architectural constraints and design principles',
     });
   }
 
@@ -69,7 +69,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
     rows.push({
       priority: '5',
       file: fw,
-      description: 'Framework-specific technical rules and best practices',
+      description: 'Framework and library conventions and best practices',
     });
   }
 
@@ -77,7 +77,7 @@ function buildRows(ctx: GeneratorContext): PriorityRow[] {
     rows.push({
       priority: '6',
       file: 'package-rules.md',
-      description: 'Tool-specific rules',
+      description: 'Tool and package configuration rules',
     });
   }
 
@@ -97,7 +97,11 @@ function buildSkillsTable(ctx: GeneratorContext): string | null {
     .map((s) => `| ${s.name} | \`@.agents/skills/${s.path.split('/').pop()}\` | ${s.description} |`)
     .join('\n');
 
-  return wrapSkills(`## 🛠️ Skills\n\n${header}\n${body}`);
+  return wrapSkills(
+    `## 🛠️ Skills\n\n` +
+      `Load skills on demand — open a skill only when its functionality is needed for the current task. Do not read all skills at startup.\n\n` +
+      `${header}\n${body}`,
+  );
 }
 
 /** Shared footer for all generated agent files. */
@@ -122,17 +126,11 @@ function generateClaudeMd(ctx: GeneratorContext): AgentFile[] {
 
   const content =
     `# CLAUDE.md\n\n` +
-    `You are operating within a project that uses a centralized, modular AI rule management system.\n\n` +
     `## 🧠 Core Directives\n` +
-    `1. **SSOT (Single Source of Truth)**: Your instructions live in \`.agents/rules/\`.\n` +
-    `2. **Priority Order**: You must load and adhere to these files in the priority defined below.\n` +
-    `3. **No Generalization**: If a local rule exists, it overrides any general knowledge, framework best practices, or default AI behavior.\n\n` +
-    `## 🔗 Rule Manifest & Priority (Load in order)\n\n` +
-    `${table}\n\n` +
-    `## 🛠 Usage Instructions\n` +
-    `- **Initialization**: Always read the priority list above before any task.\n` +
-    `- **Pathing**: All paths in this project are relative to the project root.\n` +
-    `- **Constraint Enforcement**: If you propose code that violates these rules, you must stop, self-reflect on the rules provided in \`.agents/rules/\`, and correct your proposal BEFORE outputting.\n` +
+    `1. **Read All Rules**: Before any task, you must open and read every file referenced in the Rule Manifest below. Do not skip any — each file contains instructions that override default behavior.\n` +
+    `2. **Follow Rules**: When executing tasks, follow the rules defined in these files. If a local rule conflicts with general knowledge, the local rule takes precedence.\n\n` +
+    `## 🔗 Rule Manifest\n\n` +
+    `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
@@ -156,10 +154,9 @@ function generateCursorRules(ctx: GeneratorContext): AgentFile[] {
     `alwaysApply: true\n` +
     `---\n\n` +
     `# Project AI Rules\n\n` +
-    `This project uses a centralized AI rule management system.\n` +
+    `Before any task, open and read every file referenced below — do not skip any.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
-    `${lines.join('\n')}\n\n` +
-    `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
@@ -173,14 +170,12 @@ function generateCursorRules(ctx: GeneratorContext): AgentFile[] {
 function generateGeminiMd(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
 
-  const imports = rows
-    .map((r) => `@.agents/rules/${r.file}  (P${r.priority.split(' ')[0]} — ${r.description})`)
-    .join('\n');
+  const imports = rows.map((r) => `@.agents/rules/${r.file} — ${r.description}`).join('\n');
 
   const content =
     `# GEMINI.md\n\n` +
-    `This project uses a centralized AI rule management system.\n` +
-    `All instructions live in \`.agents/rules/\`. Load these files in priority order:\n\n` +
+    `Before any task, open and read every file referenced below — do not skip any.\n` +
+    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${imports}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
@@ -205,12 +200,9 @@ function generateAgentsMd(ctx: GeneratorContext): AgentFile[] {
 
   const content =
     `# AGENTS.md\n\n` +
-    `This project uses a centralized AI rule management system.\n` +
-    `Your instructions live in \`.agents/rules/\`. Load these files in priority order:\n\n` +
-    `${table}\n\n` +
-    `## Working agreements\n` +
-    `- Follow the priority order above for all tasks.\n` +
-    `- If a local rule conflicts with general knowledge, the local rule wins.\n\n` +
+    `Before any task, open and read every file listed below — do not skip any.\n` +
+    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
@@ -234,10 +226,9 @@ function generateCopilotInstructions(ctx: GeneratorContext): AgentFile[] {
 
   const content =
     `# Project AI Rules\n\n` +
-    `This project uses a centralized AI rule management system.\n` +
+    `Before any task, open and read every file listed below — do not skip any.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
-    `${table}\n\n` +
-    `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
@@ -261,10 +252,9 @@ function generateWindsurfRules(ctx: GeneratorContext): AgentFile[] {
     `description: "Project AI agent rules and conventions — always loaded into every session"\n` +
     `---\n\n` +
     `# Project AI Rules\n\n` +
-    `This project uses a centralized AI rule management system.\n` +
+    `Before any task, open and read every file referenced below — do not skip any.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
-    `${lines.join('\n')}\n\n` +
-    `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 
@@ -287,10 +277,9 @@ function generateContinueRules(ctx: GeneratorContext): AgentFile[] {
     `# Always apply these rules to every session\n` +
     `---\n\n` +
     `# Project AI Rules\n\n` +
-    `This project uses a centralized AI rule management system.\n` +
+    `Before any task, open and read every file referenced below — do not skip any.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
-    `${lines.join('\n')}\n\n` +
-    `Refer to \`.agents/rules/\` for the complete set of rules.\n` +
+    `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
     footer();
 

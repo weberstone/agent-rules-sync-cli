@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.2] — 2026-06-17
+
+### Changed
+- Agent manifest templates: removed redundant meta-descriptions, unified
+  phrasing across all 8 agents, cleaned up duplicate sections (Working
+  agreements, Usage Instructions).
+- Rule file descriptions in priority tables made more generic — describe
+  purpose rather than assumed content, since users write their own rules.
+- Skills section now explicitly instructs agents to load skills on demand
+  instead of reading all at startup.
+- Core Directives reworded to reference the Rule Manifest table by name
+  and emphasize opening every referenced file.
+- Removed dead `nameConflict` flag from `ParsedSkill` type and simplified
+  `SkillsDiscoveryService.addSkill()`.
+
+
+
+
 ## [0.3.1] — 2026-06-16
 
 ### Changed
