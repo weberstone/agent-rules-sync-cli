@@ -4,37 +4,123 @@
  * All directory paths used by the application are resolved here:
  *  - `sourceDir`: where the CLI script lives (bundled `dist/` or dev `src/utils/`)
  *  - `targetDir`: the user's project directory (`process.cwd()`)
- *  - `rulesDir`: template files (`context/rules/` relative to project root)
- *  - `projectsDir`: per-project overrides (`context/projects/`)
+ *  - `contextDir`: the context root — either from AGENT_CONTEXT_DIR env/.env,
+ *     or discovered by walking up from sourceDir to find `context/rules/`
+ *  - `rulesDir`: `contextDir/rules/`
+ *  - `skillsDir`: `contextDir/skills/`
+ *  - `projectsDir`: `contextDir/projects/`
  *
- * Uses top-level `await` to locate the `context/rules/` directory at module
- * load time. Works in both development (vitest/tsx) and production (tsup bundle).
+ * Environment variable: AGENT_CONTEXT_DIR
+ *   - Checked first in process.env, then in a .env file at process.cwd()
+ *   - May be absolute, or relative to process.cwd()
+ *   - Must be a directory containing a `rules/` subdirectory
+ *   - When not set (or invalid), falls back to default discovery with a warning
  */
 
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
+const ENV_KEY = 'AGENT_CONTEXT_DIR';
+
+// ---- .env parser ----
+
 /**
- * Walk up the directory tree from `startDir` until we find `context/rules/`.
- * This works for both local installs and remote `npx` executions where the
- * package is in the npm cache at an unknown depth.
+ * Parse a simple .env file (KEY=VALUE pairs, no interpolation).
+ *
+ * Handles:
+ *   - Blank lines and full-line comments (starting with #)
+ *   - Quoted values (single/double) — quotes are stripped, content preserved as-is
+ *   - Inline comments outside quotes:  KEY=value # comment → value
+ *   - Hash inside quotes is preserved: KEY="path #1" → path #1
+ *   - Unquoted values: # starts a comment only when preceded by whitespace
+ */
+function parseEnvFile(content: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    if (!key) continue;
+
+    const raw = trimmed.slice(eqIdx + 1).trim();
+    if (raw.length === 0) continue;
+
+    // Quoted value: extract content between quotes, everything outside is ignored
+    let value: string;
+    if (raw.startsWith('"') || raw.startsWith("'")) {
+      value = extractQuotedValue(raw);
+    } else {
+      value = stripInlineComment(raw);
+    }
+    if (value) result[key] = value;
+  }
+  return result;
+}
+
+/** Extract the content between matching quotes. Returns raw if quote is unclosed. */
+function extractQuotedValue(raw: string): string {
+  const quote = raw[0];
+  const closeIdx = raw.indexOf(quote, 1);
+  if (closeIdx === -1) return raw;
+  return raw.slice(1, closeIdx);
+}
+
+/**
+ * Strip inline comment from an unquoted value.
+ * A # starts a comment only when preceded by whitespace or at position 0.
+ *   "value # comment" → "value"
+ *   "path#no-space"   → "path#no-space"
+ */
+function stripInlineComment(raw: string): string {
+  const idx = raw.search(/(?:^|\s)#/);
+  if (idx === -1) return raw;
+  return raw.slice(0, idx).trimEnd();
+}
+
+/**
+ * Read the AGENT_CONTEXT_DIR value, checking in order:
+ *  1. process.env.AGENT_CONTEXT_DIR
+ *  2. .env file at process.cwd()
+ * Returns `null` when neither source provides a value.
+ */
+async function resolveContextDirEnv(): Promise<string | null> {
+  if (process.env[ENV_KEY]) {
+    return process.env[ENV_KEY]!;
+  }
+
+  const envFilePath = path.join(process.cwd(), '.env');
+  try {
+    const content = await fs.readFile(envFilePath, 'utf-8');
+    const parsed = parseEnvFile(content);
+    return parsed[ENV_KEY] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ---- context root resolution ----
+
+/**
+ * Walk up the directory tree from `startDir` until we find a directory
+ * containing `context/rules/`. Used as the default fallback.
  *
  * @throws If `context/rules/` is not found — the package is corrupted.
  */
-async function findProjectRoot(startDir: string): Promise<string> {
+async function findDefaultContextRoot(startDir: string): Promise<string> {
   let dir = startDir;
   const root = path.parse(dir).root;
   while (dir !== root) {
     const candidate = path.join(dir, 'context', 'rules');
     try {
       const stat = await fs.stat(candidate);
-      if (stat.isDirectory()) return dir;
+      if (stat.isDirectory()) return path.join(dir, 'context');
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw new Error(`Failed to read directory "${candidate}": ${(err as Error).message}`);
       }
-      // ENOENT: no context/rules/ at this level, walk up to parent
     }
     dir = path.dirname(dir);
   }
@@ -43,10 +129,47 @@ async function findProjectRoot(startDir: string): Promise<string> {
   );
 }
 
+/**
+ * Resolve the context directory to an absolute path.
+ *
+ * When AGENT_CONTEXT_DIR is set (via env var or .env file):
+ *   - Relative paths are resolved against `process.cwd()`
+ *   - If the resolved directory doesn't contain `rules/`, a warning is logged
+ *     and the default fallback is used instead (graceful degradation).
+ *
+ * Otherwise falls back to walking up from sourceDir to find `context/`.
+ */
+async function resolveContextRoot(sourceDir: string): Promise<string> {
+  const envValue = await resolveContextDirEnv();
+
+  if (envValue) {
+    const resolved = path.resolve(process.cwd(), envValue);
+    const rulesCandidate = path.join(resolved, 'rules');
+    try {
+      const stat = await fs.stat(rulesCandidate);
+      if (stat.isDirectory()) return resolved;
+    } catch {
+      // Directory doesn't exist or is inaccessible — fall through to default
+    }
+    // Graceful fallback: warn and use default discovery
+    console.warn(
+      `[WARNING] AGENT_CONTEXT_DIR is set to "${envValue}" but "${rulesCandidate}" ` +
+        `is not a readable directory. Falling back to default context discovery.`,
+    );
+  }
+
+  return findDefaultContextRoot(sourceDir);
+}
+
+// ---- module-level resolution (top-level await) ----
+
 const sourceDir = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = await findProjectRoot(sourceDir);
-const rulesDir = path.join(projectRoot, 'context', 'rules');
-const projectsDir = path.join(projectRoot, 'context', 'projects');
+const contextDir = await resolveContextRoot(sourceDir);
+const rulesDir = path.join(contextDir, 'rules');
+const skillsDir = path.join(contextDir, 'skills');
+const projectsDir = path.join(contextDir, 'projects');
+
+// ---- public getters ----
 
 /** Directory where the CLI script lives. */
 export function getSourceDir(): string {
@@ -63,12 +186,22 @@ export function getProjectName(): string {
   return path.basename(process.cwd());
 }
 
-/** Path to general rule templates (`context/rules/`). */
+/** Path to the context root directory (contains rules/, skills/, projects/). */
+export function getContextDir(): string {
+  return contextDir;
+}
+
+/** Path to general rule templates (`context/rules/` or custom equivalent). */
 export function getRulesDir(): string {
   return rulesDir;
 }
 
-/** Path to per-project overrides (`context/projects/`). */
+/** Path to general skills (`context/skills/` or custom equivalent). */
+export function getSkillsDir(): string {
+  return skillsDir;
+}
+
+/** Path to per-project overrides (`context/projects/` or custom equivalent). */
 export function getProjectsDir(): string {
   return projectsDir;
 }

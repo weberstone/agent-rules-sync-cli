@@ -38,7 +38,13 @@ import { SkillsPromptService } from '../skills/prompts/skills-prompts.service.js
 import { SkillsCompilerService } from '../skills/compiler/skills-compiler.service.js';
 import type { ParsedSkill } from '../skills/types/skills.types.js';
 import { logError } from '../utils/log.js';
+import pc from 'picocolors';
 import fs from 'node:fs/promises';
+
+// Composed color helpers — return (s: string) => string for use with hr()/padLine()
+const boldMagenta = (s: string) => pc.bold(pc.magenta(s));
+const boldGreen = (s: string) => pc.bold(pc.green(s));
+const boldCyan = (s: string) => pc.bold(pc.cyan(s));
 
 const KNOWN_RULE_FILES = new Set([
   'userprompt.md',
@@ -543,17 +549,15 @@ export class OrchestratorService {
     writtenFiles: string[],
     copiedSkills: ParsedSkill[],
   ): void {
-    const pc = this.colors;
-
     const art = [
-      pc.boldMagenta('    ▄████▄     '),
-      pc.boldMagenta('    ▄████████▄   '),
-      pc.boldMagenta('   ███◣▛██▜◢███  '),
-      pc.boldMagenta('   ███▒████▒███  '),
-      pc.boldMagenta('    ▀████████▀   '),
-      pc.boldMagenta('  ▄██▒▒██▒▒██▄   '),
-      pc.boldMagenta(' ██▀╲╱╲╱╲╱╲╱▀██   '),
-      pc.boldMagenta(' ▀  ╲  ╲╱  ╱  ▀   '),
+      pc.bold(pc.magenta('    ▄████▄     ')),
+      pc.bold(pc.magenta('    ▄████████▄   ')),
+      pc.bold(pc.magenta('   ███◣▛██▜◢███  ')),
+      pc.bold(pc.magenta('   ███▒████▒███  ')),
+      pc.bold(pc.magenta('    ▀████████▀   ')),
+      pc.bold(pc.magenta('  ▄██▒▒██▒▒██▄   ')),
+      pc.bold(pc.magenta(' ██▀╲╱╲╱╲╱╲╱▀██   ')),
+      pc.bold(pc.magenta(' ▀  ╲  ╲╱  ╱  ▀   ')),
     ];
 
     const parts: string[] = [];
@@ -563,7 +567,7 @@ export class OrchestratorService {
     parts.push(pc.dim('💾 Configuration saved'));
 
     const info = [
-      ' ' + pc.boldGreen('✨ Rules synchronized!'),
+      ' ' + pc.bold(pc.green('✨ Rules synchronized!')),
       '',
       ...parts.map((p) => ' ' + p),
       '',
@@ -576,23 +580,23 @@ export class OrchestratorService {
     // Files box
     const files: string[] = [];
     if (ruleFiles.length > 0) {
-      files.push(pc.boldGreen('Rules:'));
+      files.push(pc.bold(pc.green('Rules:')));
       files.push(...ruleFiles.map((f) => '  ' + f.filename));
     }
     if (copiedSkills.length > 0) {
       if (files.length > 0) files.push('');
-      files.push(pc.boldGreen('Skills:'));
+      files.push(pc.bold(pc.green('Skills:')));
       files.push(...copiedSkills.map((s) => '  ' + s.name));
     }
     if (writtenFiles.length > 0) {
       files.push('');
-      files.push(pc.boldGreen('Agent configs:'));
+      files.push(pc.bold(pc.green('Agent configs:')));
       files.push(...writtenFiles.map((f) => '  ' + f));
     }
 
     const lines: string[] = [
-      this.hr(pc.boldGreen),
-      this.padLine('  Created files:', pc.boldGreen),
+      this.hr(boldGreen),
+      this.padLine('  Created files:', boldGreen),
       '',
       ...files.map((f) => this.padLine('      ' + f, pc.cyan)),
     ];
@@ -601,7 +605,6 @@ export class OrchestratorService {
   }
 
   private async showGitignoreWarning(): Promise<void> {
-    const pc = this.colors;
     const inGitignore = await this.output.isInGitignore('ai-context-config.json');
     if (!inGitignore) {
       console.log('');
@@ -615,32 +618,17 @@ export class OrchestratorService {
   }
 
   private showStarRequest(): void {
-    const pc = this.colors;
     console.log('');
-    console.log(this.hr(pc.boldMagenta));
-    console.log(this.padLine('🌟 LOVE THIS TOOL?', pc.boldMagenta));
+    console.log(this.hr(boldMagenta));
+    console.log(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
     console.log('');
     console.log(this.padLine('If this tool helps you build better projects,', pc.magenta));
     console.log(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
     console.log('');
-    console.log(
-      this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', pc.boldCyan),
-    );
-    console.log(this.hr(pc.boldMagenta));
+    console.log(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan));
+    console.log(this.hr(boldMagenta));
     console.log('');
   }
-
-  private colors = {
-    dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
-    cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
-    boldCyan: (s: string) => `\x1b[1m\x1b[36m${s}\x1b[39m\x1b[22m`,
-    green: (s: string) => `\x1b[32m${s}\x1b[39m`,
-    magenta: (s: string) => `\x1b[35m${s}\x1b[39m`,
-    yellow: (s: string) => `\x1b[33m${s}\x1b[39m`,
-    boldGreen: (s: string) => `\x1b[1m\x1b[32m${s}\x1b[39m\x1b[22m`,
-    boldMagenta: (s: string) => `\x1b[1m\x1b[35m${s}\x1b[39m\x1b[22m`,
-    boldYellow: (s: string) => `\x1b[1m\x1b[33m${s}\x1b[39m\x1b[22m`,
-  };
 }
 
 // ---- Helpers ----

@@ -6,12 +6,14 @@ import { SkillsDiscoveryService } from '../discovery/skills-discovery.service.js
 
 let tmpDir: string;
 let skillsDir: string;
+let projectsDir: string;
 let service: SkillsDiscoveryService;
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skills-test-'));
   skillsDir = path.join(tmpDir, 'skills');
-  service = new SkillsDiscoveryService(skillsDir);
+  projectsDir = path.join(tmpDir, 'projects');
+  service = new SkillsDiscoveryService(skillsDir, projectsDir);
 });
 
 afterEach(async () => {
@@ -96,7 +98,7 @@ describe('listGeneralSkills', () => {
 
 describe('listProjectSkills', () => {
   it('discovers project skills', async () => {
-    const projectSkillsDir = path.join(tmpDir, 'projects', 'my-app', 'skills');
+    const projectSkillsDir = path.join(projectsDir, 'my-app', 'skills');
     await createFile(
       path.join(projectSkillsDir, 'custom-skill', 'SKILL.md'),
       '---\ndescription: Custom project skill\n---\n',

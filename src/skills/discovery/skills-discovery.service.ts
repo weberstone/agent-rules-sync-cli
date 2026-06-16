@@ -1,5 +1,8 @@
 /**
- * Scans the `context/skills/` directory to discover available skills.
+ * Scans the skills directory to discover available skills.
+ *
+ * Receives `skillsDir` for general skills and `projectsDir` for
+ * per-project overrides — no phantom `path.join(x, '..', ...)` references.
  */
 
 import path from 'node:path';
@@ -9,16 +12,23 @@ import { logWarning } from '../../utils/log.js';
 import type { ParsedSkill } from '../types/skills.types.js';
 
 export class SkillsDiscoveryService {
-  constructor(private readonly skillsDir: string) {}
+  /**
+   * @param skillsDir — absolute path to general skills (e.g. `context/skills/`)
+   * @param projectsDir — absolute path to projects directory (e.g. `context/projects/`)
+   */
+  constructor(
+    private readonly skillsDir: string,
+    private readonly projectsDir: string,
+  ) {}
 
-  /** Scan `context/skills/` for general skills. */
+  /** Scan the general skills directory. */
   async listGeneralSkills(): Promise<ParsedSkill[]> {
     return this.scanSkillsDir(this.skillsDir, 'general');
   }
 
-  /** Scan `context/projects/<name>/skills/` for project skills. */
+  /** Scan `<projectsDir>/<projectName>/skills/` for project skills. */
   async listProjectSkills(projectName: string): Promise<ParsedSkill[]> {
-    const dirPath = path.join(this.skillsDir, '..', 'projects', projectName, 'skills');
+    const dirPath = path.join(this.projectsDir, projectName, 'skills');
     return this.scanSkillsDir(dirPath, 'project');
   }
 

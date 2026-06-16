@@ -38,6 +38,13 @@ describe('getSourceDir', () => {
   });
 });
 
+describe('getContextDir', () => {
+  it('returns a path ending with context', async () => {
+    const { getContextDir } = await importPaths();
+    expect(getContextDir()).toMatch(/context$/);
+  });
+});
+
 describe('getRulesDir', () => {
   it('returns context/rules/ directory', async () => {
     const { getRulesDir } = await importPaths();
@@ -45,9 +52,26 @@ describe('getRulesDir', () => {
   });
 });
 
+describe('getSkillsDir', () => {
+  it('returns context/skills/ directory', async () => {
+    const { getSkillsDir } = await importPaths();
+    expect(getSkillsDir()).toMatch(/context\/skills$/);
+  });
+});
+
 describe('getProjectsDir', () => {
   it('returns context/projects/ directory', async () => {
     const { getProjectsDir } = await importPaths();
     expect(getProjectsDir()).toMatch(/context\/projects$/);
+  });
+});
+
+describe('path consistency', () => {
+  it('rulesDir, skillsDir, and projectsDir share the same parent (contextDir)', async () => {
+    const { getContextDir, getRulesDir, getSkillsDir, getProjectsDir } = await importPaths();
+    const context = getContextDir();
+    expect(getRulesDir()).toBe(`${context}/rules`);
+    expect(getSkillsDir()).toBe(`${context}/skills`);
+    expect(getProjectsDir()).toBe(`${context}/projects`);
   });
 });

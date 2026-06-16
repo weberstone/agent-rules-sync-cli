@@ -1,10 +1,10 @@
 /**
- * Scans the `context/rules/` directory to discover available templates.
+ * Scans the rules directory to discover available templates.
  *
  * All file system access for template discovery goes through this service.
  * It is injected into PromptService (to list options) and CompilerService
- * (to read template content). The constructor receives `rulesDir` so it
- * works regardless of where the package is installed.
+ * (to read template content). The constructor receives `rulesDir` for
+ * template discovery and `projectsDir` for per-project overrides.
  *
  * Error handling: missing directories are treated as "no options available"
  * (returns empty array / null). Non-ENOENT errors are logged as warnings.
@@ -21,13 +21,17 @@ const ALL_ARCHITECTURES: readonly Architecture[] = ['frontend', 'backend', 'full
 
 export class DiscoveryService {
   /**
-   * @param rulesDir — absolute path to `context/rules/`
+   * @param rulesDir — absolute path to the rules directory (e.g. `context/rules/`)
+   * @param projectsDir — absolute path to the projects directory (e.g. `context/projects/`)
    */
-  constructor(private readonly rulesDir: string) {}
+  constructor(
+    private readonly rulesDir: string,
+    private readonly projectsDir: string,
+  ) {}
 
   /**
    * Return which architectures are available by checking which directories
-   * exist under `context/rules/`. Used to build the dynamic architecture
+   * exist under the rules directory. Used to build the dynamic architecture
    * selection in the questionnaire (fullstack only appears if its dir exists).
    */
   async getAvailableArchitectures(): Promise<Architecture[]> {
@@ -47,22 +51,22 @@ export class DiscoveryService {
     return available;
   }
 
-  /** List `.md` files in `context/rules/<arch>/frameworks/`, sans extension. */
+  /** List `.md` files in `<rulesDir>/<arch>/frameworks/`, sans extension. */
   async listFrameworks(arch: Architecture): Promise<string[]> {
     return this.listDir(path.join(this.rulesDir, arch, 'frameworks'));
   }
 
-  /** List `.md` files in `context/rules/<arch>/packages/`, sans extension. */
+  /** List `.md` files in `<rulesDir>/<arch>/packages/`, sans extension. */
   async listPackages(arch: Architecture): Promise<string[]> {
     return this.listDir(path.join(this.rulesDir, arch, 'packages'));
   }
 
   /**
    * Check if a per-project override file exists and is non-empty.
-   * Path: `context/projects/<projectName>/rules/<fileName>`
+   * Path: `<projectsDir>/<projectName>/rules/<fileName>`
    */
   async hasProjectOverride(projectName: string, fileName: string): Promise<boolean> {
-    const filePath = path.join(this.rulesDir, '..', 'projects', projectName, 'rules', fileName);
+    const filePath = path.join(this.projectsDir, projectName, 'rules', fileName);
     return this.isFileNonEmpty(filePath);
   }
 
@@ -71,13 +75,13 @@ export class DiscoveryService {
    * Returns `null` if the file doesn't exist or is empty.
    */
   async getProjectOverride(projectName: string, fileName: string): Promise<string | null> {
-    const filePath = path.join(this.rulesDir, '..', 'projects', projectName, 'rules', fileName);
+    const filePath = path.join(this.projectsDir, projectName, 'rules', fileName);
     return this.readIfNonEmpty(filePath);
   }
 
   /**
    * Read the content of a general template.
-   * Path: `context/rules/<arch>/<category>/<name>.md`
+   * Path: `<rulesDir>/<arch>/<category>/<name>.md`
    */
   async getTemplateContent(
     arch: Architecture,
@@ -89,7 +93,7 @@ export class DiscoveryService {
   }
 
   /**
-   * List `.md` files in `context/rules/<arch>/userprompts/`, sans extension.
+   * List `.md` files in `<rulesDir>/<arch>/userprompts/`, sans extension.
    * Returns [] if the directory doesn't exist or is empty.
    */
   async listUserprompts(arch: Architecture): Promise<string[]> {
@@ -97,7 +101,7 @@ export class DiscoveryService {
   }
 
   /**
-   * Read a specific userprompt file from `context/rules/<arch>/userprompts/<name>.md`.
+   * Read a specific userprompt file from `<rulesDir>/<arch>/userprompts/<name>.md`.
    * Returns `null` if the file doesn't exist or is empty.
    */
   async getUserpromptContent(arch: Architecture, name: string): Promise<string | null> {
@@ -106,7 +110,7 @@ export class DiscoveryService {
   }
 
   /**
-   * List `.md` files in `context/rules/<arch>/architectures/`, sans extension.
+   * List `.md` files in `<rulesDir>/<arch>/architectures/`, sans extension.
    * Returns [] if the directory doesn't exist or is empty.
    */
   async listArchitectures(arch: Architecture): Promise<string[]> {
@@ -114,7 +118,7 @@ export class DiscoveryService {
   }
 
   /**
-   * Read a specific architecture file from `context/rules/<arch>/architectures/<name>.md`.
+   * Read a specific architecture file from `<rulesDir>/<arch>/architectures/<name>.md`.
    * Returns `null` if the file doesn't exist or is empty.
    */
   async getArchitectureContent(arch: Architecture, name: string): Promise<string | null> {
@@ -123,7 +127,7 @@ export class DiscoveryService {
   }
 
   /**
-   * List `.md` files in `context/rules/<arch>/workflows/`, sans extension.
+   * List `.md` files in `<rulesDir>/<arch>/workflows/`, sans extension.
    * Returns [] if the directory doesn't exist or is empty.
    */
   async listWorkflows(arch: Architecture): Promise<string[]> {
@@ -131,7 +135,7 @@ export class DiscoveryService {
   }
 
   /**
-   * Read a specific workflow file from `context/rules/<arch>/workflows/<name>.md`.
+   * Read a specific workflow file from `<rulesDir>/<arch>/workflows/<name>.md`.
    * Returns `null` if the file doesn't exist or is empty.
    */
   async getWorkflowContent(arch: Architecture, name: string): Promise<string | null> {

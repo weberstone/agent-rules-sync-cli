@@ -10,6 +10,7 @@
  * (architectures, frameworks, packages) and detect project overrides.
  */
 
+import pc from 'picocolors';
 import { intro, outro, cancel, isCancel, confirm, select, multiselect } from './clack-adapter.js';
 import type { Architecture } from '../config/config.types.js';
 import type { DiscoveryService } from '../discovery/discovery.service.js';
@@ -21,12 +22,6 @@ const ARCH_LABELS: Record<Architecture, string> = {
 };
 
 const SKIP_OPTION = { value: '__skip__', label: '⊘ Skip (no rules of this type)' };
-
-const C = {
-  dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
-  cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
-  yellow: (s: string) => `\x1b[33m${s}\x1b[39m`,
-};
 
 /** Type-narrowing helper: returns true if the value is a `@clack/prompts` cancel symbol. */
 function isCancelSignal(value: unknown): value is symbol {
@@ -44,7 +39,7 @@ export class PromptService {
    * @returns `Answers` with all user choices, or `null` if the user cancelled.
    */
   async run(projectName: string): Promise<Answers | null> {
-    intro(C.cyan('agent-context-sync-cli'));
+    intro(pc.cyan('agent-context-sync-cli'));
 
     if (!(await this.stepCheckSpec(projectName))) return null;
 
@@ -103,7 +98,7 @@ export class PromptService {
     const proceed = await confirm({
       message:
         `📋 No project spec found.\n` +
-        C.dim(`   Create one at context/projects/${projectName}/rules/spec.md`) +
+        pc.dim(`   Create one at context/projects/${projectName}/rules/spec.md`) +
         `\n   Continue without it?`,
     });
 
@@ -169,7 +164,7 @@ export class PromptService {
         const useProject = await confirm({
           message:
             '📄 Found userprompt.md in project overrides.\n' +
-            C.dim('   Use it or pick from general templates?'),
+            pc.dim('   Use it or pick from general templates?'),
         });
         if (isCancelSignal(useProject)) {
           cancel('🚫 Cancelled by user.');
@@ -208,7 +203,7 @@ export class PromptService {
     const proceed = await confirm({
       message:
         `🧠 No userprompt files found.\n` +
-        C.yellow(
+        pc.yellow(
           '   It is highly recommended to define the AI persona.\n' +
             `   Add .md files to context/rules/${architecture}/userprompts/`,
         ) +
@@ -245,7 +240,7 @@ export class PromptService {
         const useProject = await confirm({
           message:
             '📄 Found architecture.md in project overrides.\n' +
-            C.dim('   Use it or pick from general templates?'),
+            pc.dim('   Use it or pick from general templates?'),
         });
         if (isCancelSignal(useProject)) {
           cancel('🚫 Cancelled by user.');
@@ -285,7 +280,7 @@ export class PromptService {
     const proceed = await confirm({
       message:
         `🏛️  No architecture files found.\n` +
-        C.yellow(
+        pc.yellow(
           '   It is recommended to define architecture guidelines.\n' +
             `   Add .md files to context/rules/${architecture}/architectures/`,
         ) +
@@ -319,7 +314,7 @@ export class PromptService {
         const useProject = await confirm({
           message:
             '📄 Found framework.md in project overrides.\n' +
-            C.dim('   Use it or pick from general templates?'),
+            pc.dim('   Use it or pick from general templates?'),
         });
         if (isCancelSignal(useProject)) {
           cancel('🚫 Cancelled by user.');
@@ -339,7 +334,7 @@ export class PromptService {
       const proceed = await confirm({
         message:
           `📦 No framework rules found.\n` +
-          C.dim(`   Add .md files to context/rules/${architecture}/frameworks/`) +
+          pc.dim(`   Add .md files to context/rules/${architecture}/frameworks/`) +
           `\n   Continue without framework rules?`,
       });
 
@@ -400,7 +395,7 @@ export class PromptService {
         const useProject = await confirm({
           message:
             '📄 Found package-rules.md in project overrides.\n' +
-            C.dim('   Use it or pick from general templates?'),
+            pc.dim('   Use it or pick from general templates?'),
         });
         if (isCancelSignal(useProject)) {
           cancel('🚫 Cancelled by user.');
@@ -420,7 +415,7 @@ export class PromptService {
       const proceed = await confirm({
         message:
           `📚 No package rules found.\n` +
-          C.dim(`   Add .md files to context/rules/${architecture}/packages/`) +
+          pc.dim(`   Add .md files to context/rules/${architecture}/packages/`) +
           `\n   Continue without package rules?`,
       });
 
@@ -470,7 +465,7 @@ export class PromptService {
         const useProject = await confirm({
           message:
             '📄 Found workflow.md in project overrides.\n' +
-            C.dim('   Use it or pick from general templates?'),
+            pc.dim('   Use it or pick from general templates?'),
         });
         if (isCancelSignal(useProject)) {
           cancel('🚫 Cancelled by user.');
@@ -510,7 +505,7 @@ export class PromptService {
     const proceed = await confirm({
       message:
         `⚙️  No workflow files found.\n` +
-        C.yellow(
+        pc.yellow(
           '   It is recommended to define a workflow protocol.\n' +
             `   Add .md files to context/rules/${architecture}/workflows/`,
         ) +
