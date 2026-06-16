@@ -20,6 +20,8 @@ const ARCH_LABELS: Record<Architecture, string> = {
   fullstack: 'Fullstack',
 };
 
+const SKIP_OPTION = { value: '__skip__', label: '⊘ Skip (no rules of this type)' };
+
 const C = {
   dim: (s: string) => `\x1b[2m${s}\x1b[22m`,
   cyan: (s: string) => `\x1b[36m${s}\x1b[39m`,
@@ -184,16 +186,20 @@ export class PromptService {
     }
 
     if (available.length > 0) {
-      const options = available.map((name) => ({ value: name, label: name }));
+      const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
 
       const choice = await select({
-        message: '🧠 Select an AI persona (userprompt):',
+        message: '🧠 Select an AI persona:',
         options,
       });
 
       if (isCancelSignal(choice)) {
         cancel('🚫 Cancelled by user.');
         return null;
+      }
+
+      if (choice === '__skip__') {
+        return { hasUserprompt: false, userpromptSource: null, userpromptFile: null };
       }
 
       return { hasUserprompt: true, userpromptSource: 'general', userpromptFile: choice };
@@ -256,7 +262,7 @@ export class PromptService {
     }
 
     if (available.length > 0) {
-      const options = available.map((name) => ({ value: name, label: name }));
+      const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
 
       const choice = await select({
         message: '🏛️  Select architecture guidelines:',
@@ -266,6 +272,10 @@ export class PromptService {
       if (isCancelSignal(choice)) {
         cancel('🚫 Cancelled by user.');
         return null;
+      }
+
+      if (choice === '__skip__') {
+        return { hasArchitecture: false, architectureSource: null, architectureFile: null };
       }
 
       return { hasArchitecture: true, architectureSource: 'general', architectureFile: choice };
@@ -341,12 +351,13 @@ export class PromptService {
       return { frameworks: [], hasProjectFramework: false };
     }
 
-    const options = available.map((name) => ({ value: name, label: name }));
+    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
 
     if (architecture === 'fullstack') {
       const choices = await multiselect({
-        message: '📦 Select frameworks (fullstack — multiple allowed):',
+        message: '📦 Select frameworks (empty = skip):',
         options,
+        required: false,
       });
 
       if (isCancelSignal(choices)) {
@@ -365,6 +376,10 @@ export class PromptService {
     if (isCancelSignal(choice)) {
       cancel('🚫 Cancelled by user.');
       return null;
+    }
+
+    if (choice === '__skip__') {
+      return { frameworks: [], hasProjectFramework: false };
     }
 
     return { frameworks: [choice], hasProjectFramework: false };
@@ -417,10 +432,10 @@ export class PromptService {
       return { packages: [], hasProjectPackages: false };
     }
 
-    const options = available.map((name) => ({ value: name, label: name }));
+    const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
 
     const choices = await multiselect({
-      message: '📚 Select packages and tools:',
+      message: '📚 Select packages and tools (empty = skip):',
       options,
       required: false,
     });
@@ -472,7 +487,7 @@ export class PromptService {
     }
 
     if (available.length > 0) {
-      const options = available.map((name) => ({ value: name, label: name }));
+      const options = [...available.map((name) => ({ value: name, label: name })), SKIP_OPTION];
 
       const choice = await select({
         message: '⚙️  Select a workflow protocol:',
@@ -482,6 +497,10 @@ export class PromptService {
       if (isCancelSignal(choice)) {
         cancel('🚫 Cancelled by user.');
         return null;
+      }
+
+      if (choice === '__skip__') {
+        return { hasWorkflow: false, workflowSource: null, workflowFile: null };
       }
 
       return { hasWorkflow: true, workflowSource: 'general', workflowFile: choice };
