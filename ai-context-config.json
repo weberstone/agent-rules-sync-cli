@@ -2,13 +2,16 @@
   "version": 1,
   "projectName": "agent-context-sync-cli",
   "architecture": "backend",
-  "frameworks": [],
+  "frameworks": [
+    "nest-guidelines"
+  ],
   "packages": [
     "typescript"
   ],
   "agents": [
     "claude-code",
-    "gemini-cli"
+    "gemini-cli",
+    "continue"
   ],
   "hasUserprompt": true,
   "userpromptFile": "nodejs-expert",
@@ -23,5 +26,5 @@
   "hasProjectPackages": false,
   "syncSkills": false,
   "skills": [],
-  "lastSync": "2026-06-17T10:07:15.392Z"
+  "lastSync": "2026-06-17T18:44:43.049Z"
 }
