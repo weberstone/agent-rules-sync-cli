@@ -370,8 +370,7 @@ The tool is universal and generates native specifications for most modern AI too
 You do not need to go through the interactive poll again. Upon the first run, the utility creates a local `ai-context-config.json` file with your preferences (Zero Re-configuration). Just run the sync command again, and the script will automatically download the latest versions of your previously selected skills and rules.
 
 **Does the tool support working with monorepos (Monorepo, Nx, Turborepo)?**
-Yes. You can run the CLI isolated in the root of each individual package, application, or microservice within your monorepo. A separate `ai-context-config.json` and a unique set of rules will be created for each module (e.g., Angular frontend rules and NestJS backend rules will not mix).**Will the generated context exceed the token limits (Context Window) of the LLM model?**
-No. The essence of the `agent-context-sync-cli` architecture is precisely context optimization. Thanks to the strict separation into global rules and atomic skills, you only inject instructions into the project that are genuinely required. This prevents prompt "bloat", saves tokens, and minimizes AI model hallucinations.
+Yes. You can run the CLI isolated in the root of each individual package, application, or microservice within your monorepo. A separate `ai-context-config.json` and a unique set of rules will be created for each module (e.g., Angular frontend rules and NestJS backend rules will not mix).
 
-**Can I automate the utility execution in CI/CD or Git Hooks?**
-Yes. The utility works perfectly in non-interactive mode if the `ai-context-config.json` file is already present in the project. You can add the script execution command to `post-merge` or `pre-commit` hooks (e.g., via Husky) so that the entire team always has fresh coding rules after a `git pull`.
+**Will the generated context exceed the token limits (Context Window) of the LLM model?**
+It ultimately depends on how voluminous your rules are—more text naturally means more tokens, but even if detailed instructions increase consumption in the short term, it will likely result in savings over the long run of the entire project's development, as the agent will complete tasks correctly on the first try, eliminating extra debugging cycles and hallucinations.
