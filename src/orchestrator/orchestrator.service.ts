@@ -11,16 +11,6 @@
  * All services are injected via constructor (dependency injection).
  */
 
-import {
-  select,
-  confirm,
-  isCancel,
-  cancel,
-  outro,
-  spinner,
-  intro,
-  multiselect,
-} from '../rules/prompts/clack-adapter.js';
 import { ConfigService } from '../rules/config/config.service.js';
 import type { Architecture, Config } from '../rules/config/config.types.js';
 import { DiscoveryService } from '../rules/discovery/discovery.service.js';
@@ -39,9 +29,9 @@ import { SkillsDiscoveryService } from '../skills/discovery/skills-discovery.ser
 import { SkillsPromptService } from '../skills/prompts/skills-prompts.service.js';
 import { SkillsCompilerService } from '../skills/compiler/skills-compiler.service.js';
 import type { ParsedSkill } from '../skills/types/skills.types.js';
-import { logError, logPlain } from '../utils/log.js';
 import pc from 'picocolors';
 import fs from 'node:fs/promises';
+import type { Terminal } from './terminal.interface.js';
 
 // Composed color helpers — return (s: string) => string for use with hr()/padLine()
 const boldMagenta = (s: string) => pc.bold(pc.magenta(s));
@@ -58,6 +48,7 @@ export class OrchestratorService {
     private readonly skillsDiscovery: SkillsDiscoveryService,
     private readonly skillsPrompt: SkillsPromptService,
     private readonly skillsCompiler: SkillsCompilerService,
+    private readonly terminal: Terminal,
     private readonly projectName: string,
     private readonly rulesDir: string,
     private readonly targetDir: string,
@@ -67,7 +58,7 @@ export class OrchestratorService {
     if (!(await this.preflightRulesDir())) return;
     if (!(await this.preflightWriteAccess())) return;
 
-    if (process.stdin.isTTY) intro('agent-context-sync-cli');
+    if (process.stdin.isTTY) this.terminal.intro('agent-context-sync-cli');
 
     // 1. Config discovery
     const configAnswers = await this.resolveConfig();
@@ -93,7 +84,7 @@ export class OrchestratorService {
       // Resolve project-vs-general name conflicts before compiling
       await this.resolveRuleConflicts(rulesAnswers);
 
-      const s = spinner();
+      const s = this.terminal.spinner();
       s.start('Compiling rules from templates...');
       ruleFiles = await this.compiler.compile(rulesAnswers, this.projectName);
       await this.output.writeRulesDir(ruleFiles);
@@ -124,7 +115,7 @@ export class OrchestratorService {
           ...(await this.skillsDiscovery.listGeneralSkills()),
         ];
         const selected = allSkills.filter((s) => selectedSkillNames.includes(s.name));
-        const s = spinner();
+        const s = this.terminal.spinner();
         s.start('Copying skills...');
         const names = await this.skillsCompiler.compile(selected);
         copiedSkills = selected.filter((s) => names.includes(s.name));
@@ -175,10 +166,12 @@ export class OrchestratorService {
       await this.showGitignoreWarning();
       this.showStarRequest();
     } else {
-      logPlain('Rules synchronized successfully.');
-      if (ruleFiles.length > 0) logPlain(`${RULES_DIR}/: ${ruleFiles.length} files`);
-      if (copiedSkills.length > 0) logPlain(`${SKILLS_DIR}/: ${copiedSkills.length} skills`);
-      if (writtenFiles.length > 0) logPlain(`Agent configs: ${writtenFiles.join(', ')}`);
+      this.terminal.logPlain('Rules synchronized successfully.');
+      if (ruleFiles.length > 0) this.terminal.logPlain(`${RULES_DIR}/: ${ruleFiles.length} files`);
+      if (copiedSkills.length > 0)
+        this.terminal.logPlain(`${SKILLS_DIR}/: ${copiedSkills.length} skills`);
+      if (writtenFiles.length > 0)
+        this.terminal.logPlain(`Agent configs: ${writtenFiles.join(', ')}`);
     }
   }
 
@@ -189,7 +182,7 @@ export class OrchestratorService {
       await fs.access(this.rulesDir, fs.constants.R_OK);
       return true;
     } catch (err) {
-      logError(
+      this.terminal.logError(
         `Rules directory not accessible: ${this.rulesDir}\n` +
           `${(err as Error).message}\n` +
           'Make sure the agent-context-sync-cli package includes the rules/ directory.',
@@ -203,7 +196,7 @@ export class OrchestratorService {
       await fs.access(this.targetDir, fs.constants.W_OK);
       return true;
     } catch (err) {
-      logError(
+      this.terminal.logError(
         `Cannot write to target directory: ${this.targetDir}\n` +
           `${(err as Error).message}\n` +
           'Check directory permissions and try again.',
@@ -219,7 +212,9 @@ export class OrchestratorService {
 
     if (existingConfig === null) {
       if (!process.stdin.isTTY) {
-        logError('No configuration file found and no interactive terminal available.');
+        this.terminal.logError(
+          'No configuration file found and no interactive terminal available.',
+        );
         return null;
       }
       return {};
@@ -229,12 +224,12 @@ export class OrchestratorService {
       return this.configToAnswers(existingConfig);
     }
 
-    const useExisting = await confirm(
+    const useExisting = await this.terminal.confirm(
       'Existing configuration file found. Use it to regenerate rules, or start a fresh questionnaire?',
     );
 
-    if (isCancel(useExisting)) {
-      cancel('Operation cancelled by user.');
+    if (this.terminal.isCancel(useExisting)) {
+      this.terminal.cancel('Operation cancelled by user.');
       return null;
     }
 
@@ -306,10 +301,10 @@ export class OrchestratorService {
       // In non-TTY mode, sync rules if the config has architecture data
       return true;
     }
-    const proceed = await confirm({
+    const proceed = await this.terminal.confirm({
       message: 'Sync rules for this project?',
     });
-    return !isCancel(proceed) && !!proceed;
+    return !this.terminal.isCancel(proceed) && !!proceed;
   }
 
   private async askSyncSkills(): Promise<boolean> {
@@ -318,10 +313,10 @@ export class OrchestratorService {
       const config = await this.configService.read();
       return config?.syncSkills === true;
     }
-    const proceed = await confirm({
+    const proceed = await this.terminal.confirm({
       message: 'Sync skills for this project?',
     });
-    return !isCancel(proceed) && !!proceed;
+    return !this.terminal.isCancel(proceed) && !!proceed;
   }
 
   // ---- Agent selection ----
@@ -332,14 +327,14 @@ export class OrchestratorService {
       label: a.label,
     }));
 
-    const choices = await multiselect({
+    const choices = await this.terminal.multiselect({
       message: '🤖 Select AI agents to generate config files for:',
       options,
       required: false,
     });
 
-    if (isCancel(choices)) {
-      cancel('🚫 Cancelled by user.');
+    if (this.terminal.isCancel(choices)) {
+      this.terminal.cancel('🚫 Cancelled by user.');
       return null;
     }
 
@@ -466,7 +461,7 @@ export class OrchestratorService {
 
     if (!hasProject || items.length === 0) return;
 
-    const choice = await select({
+    const choice = await this.terminal.select({
       message: `${fileName} exists in both project (${fileName}) and general (${folderName}/). Which one to use?`,
       options: [
         { value: 'project', label: `Project version (${fileName})` },
@@ -474,14 +469,17 @@ export class OrchestratorService {
       ],
     });
 
-    if (isCancel(choice)) return;
+    if (this.terminal.isCancel(choice)) return;
 
     if (choice === 'project') {
       applyProject();
     } else {
       const fileOptions = items.map((name) => ({ value: name, label: name }));
-      const fileChoice = await select({ message: selectMessage, options: fileOptions });
-      if (!isCancel(fileChoice)) {
+      const fileChoice = await this.terminal.select({
+        message: selectMessage,
+        options: fileOptions,
+      });
+      if (!this.terminal.isCancel(fileChoice)) {
         applyGeneral(fileChoice);
       }
     }
@@ -501,7 +499,7 @@ export class OrchestratorService {
 
     if (!hasProject || items.length === 0) return;
 
-    const choice = await select({
+    const choice = await this.terminal.select({
       message: `${fileName} exists in both project (${fileName}) and general (${folderName}/). Which one to use?`,
       options: [
         { value: 'project', label: `Project version (${fileName})` },
@@ -509,7 +507,7 @@ export class OrchestratorService {
       ],
     });
 
-    if (!isCancel(choice)) {
+    if (!this.terminal.isCancel(choice)) {
       onResult(choice === 'project');
     }
   }
@@ -523,19 +521,22 @@ export class OrchestratorService {
     const hasMarkers = await this.output.hasSyncMarkersInFile(filename);
     if (hasMarkers) return 'update';
 
-    const choice = await select(`File "${filename}" already exists. What should be done?`, [
-      {
-        value: 'update',
-        label: 'Update rules section — Add AGENT-CONTEXT-SYNC-CLI block (Recommended)',
-      },
-      {
-        value: 'overwrite',
-        label: 'Overwrite — Replace entire file with generated rules',
-      },
-      { value: 'skip', label: 'Skip — Do not touch this file' },
-    ]);
+    const choice = await this.terminal.select({
+      message: `File "${filename}" already exists. What should be done?`,
+      options: [
+        {
+          value: 'update',
+          label: 'Update rules section — Add AGENT-CONTEXT-SYNC-CLI block (Recommended)',
+        },
+        {
+          value: 'overwrite',
+          label: 'Overwrite — Replace entire file with generated rules',
+        },
+        { value: 'skip', label: 'Skip — Do not touch this file' },
+      ],
+    });
 
-    if (isCancel(choice)) return 'skip';
+    if (this.terminal.isCancel(choice)) return 'skip';
 
     return choice as 'update' | 'overwrite' | 'skip';
   }
@@ -581,7 +582,7 @@ export class OrchestratorService {
       '',
     ];
 
-    outro(art.map((line, i) => line + (info[i] ?? '')).join('\n'));
+    this.terminal.outro(art.map((line, i) => line + (info[i] ?? '')).join('\n'));
 
     // Files box
     const files: string[] = [];
@@ -607,33 +608,37 @@ export class OrchestratorService {
       ...files.map((f) => this.padLine('      ' + f, pc.cyan)),
     ];
 
-    outro(lines.join('\n'));
+    this.terminal.outro(lines.join('\n'));
   }
 
   private async showGitignoreWarning(): Promise<void> {
     const inGitignore = await this.output.isInGitignore('ai-context-config.json');
     if (!inGitignore) {
-      logPlain('');
-      logPlain(
+      this.terminal.logPlain('');
+      this.terminal.logPlain(
         this.padLine('ℹ️  "ai-context-config.json" was created to store your preferences.', pc.dim),
       );
-      logPlain(
+      this.terminal.logPlain(
         this.padLine("   If you don't want to commit it, add it to your .gitignore file.", pc.dim),
       );
     }
   }
 
   private showStarRequest(): void {
-    logPlain('');
-    logPlain(this.hr(boldMagenta));
-    logPlain(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
-    logPlain('');
-    logPlain(this.padLine('If this tool helps you build better projects,', pc.magenta));
-    logPlain(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
-    logPlain('');
-    logPlain(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan));
-    logPlain(this.hr(boldMagenta));
-    logPlain('');
+    this.terminal.logPlain('');
+    this.terminal.logPlain(this.hr(boldMagenta));
+    this.terminal.logPlain(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
+    this.terminal.logPlain('');
+    this.terminal.logPlain(
+      this.padLine('If this tool helps you build better projects,', pc.magenta),
+    );
+    this.terminal.logPlain(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
+    this.terminal.logPlain('');
+    this.terminal.logPlain(
+      this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan),
+    );
+    this.terminal.logPlain(this.hr(boldMagenta));
+    this.terminal.logPlain('');
   }
 }
 

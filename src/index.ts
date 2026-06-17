@@ -22,6 +22,7 @@ import { SkillsDiscoveryService } from './skills/discovery/skills-discovery.serv
 import { SkillsPromptService } from './skills/prompts/skills-prompts.service.js';
 import { SkillsCompilerService } from './skills/compiler/skills-compiler.service.js';
 import { OrchestratorService } from './orchestrator/orchestrator.service.js';
+import { ClackTerminal } from './orchestrator/clack-terminal.js';
 import { logError } from './utils/log.js';
 
 const targetDir = getTargetDir();
@@ -39,6 +40,7 @@ const output = new OutputService(targetDir);
 const skillsDiscovery = new SkillsDiscoveryService(skillsDir, projectsDir);
 const skillsPrompt = new SkillsPromptService(skillsDiscovery);
 const skillsCompiler = new SkillsCompilerService(targetDir);
+const terminal = new ClackTerminal();
 
 const orchestrator = new OrchestratorService(
   configService,
@@ -49,6 +51,7 @@ const orchestrator = new OrchestratorService(
   skillsDiscovery,
   skillsPrompt,
   skillsCompiler,
+  terminal,
   projectName,
   rulesDir,
   targetDir,
