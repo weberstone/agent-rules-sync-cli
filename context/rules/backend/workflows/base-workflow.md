@@ -1,6 +1,6 @@
-# AI Backend Workflow & Execution Rules
+# AI Workflow & Execution Rules
 
-These rules define the mandatory backend development workflow for this project.
+These rules define the mandatory workflow for this project.
 
 ## 0. Scope Evaluation
 
@@ -10,8 +10,8 @@ Determine task complexity before acting.
 Small, isolated changes. Execute directly.
 
 Examples:
-- configuration tweaks & env updates;
-- logging adjustments;
+- typos;
+- minor styling;
 - single-function updates;
 - localized bug fixes.
 
@@ -19,10 +19,10 @@ Do NOT create `.agents/roadmap.md` or `.agents/memory.md`.
 
 ### Macro-Task
 Use the full workflow for:
-- new API endpoints / business logic;
-- database schema changes & migrations;
-- architectural shifts (layers, services, repositories);
-- security / auth integrations;
+- new features;
+- multi-file changes;
+- architectural work;
+- refactors affecting multiple components;
 - tasks requiring staged execution.
 
 ### Unclear Scope
@@ -61,7 +61,7 @@ List required prerequisites.
 A stage is LOCKED if any dependency remains `[ ]` or `[-]`.
 
 ### DoD (Definition of Done)
-Objective completion criteria (e.g., data saved, correct API statuses).
+Objective completion criteria.
 
 ### History
 Never delete completed or obsolete stages. Preserve execution history.
@@ -110,17 +110,17 @@ If requirements change:
 
 ## 6. Testing
 
-For testable business logic and API endpoints:
+For testable business logic:
 
-1. Write unit/integration tests first.
+1. Write tests first (Vitest / NgTest where applicable).
 2. Implement the minimal logic required to satisfy them.
 
 TDD is optional for:
-- raw database migration SQL/scripts;
-- seed data / mock scripts;
-- infrastructure setup (Docker, CI/CD);
-- environment configurations;
-- log statements.
+- styling;
+- templates;
+- documentation;
+- configuration;
+- infrastructure setup.
 
 ---
 
@@ -130,10 +130,10 @@ TDD is optional for:
 
 Never generate placeholders such as:
 
-```text
+```ts
 // TODO
 // implement later
-// ... rest of backend logic
+// ... rest of code
 ```
 
 Always provide complete implementations within the approved scope.
@@ -152,9 +152,9 @@ After implementation:
 
 - run lint;
 - run formatter;
-- run compiler / typecheck;
-- run build (if applicable);
-- run test suite (unit and integration).
+- run typecheck;
+- run build;
+- run tests (if applicable).
 
 Rules:
 
@@ -195,12 +195,16 @@ State synchronization is part of the Definition of Done.
 
 ### Git Commits
 
-The AI MUST NEVER run git commands to commit code.
+The AI MUST NEVER run:
+
+```bash
+git commit
+```
 
 Required flow:
 
 1. AI completes the stage.
-2. User reviews and verifies (e.g., via Postman, cURL, or tests).
+2. User reviews and verifies.
 3. User creates the commit manually.
 4. User instructs the AI to continue.
 
@@ -218,4 +222,3 @@ Artifacts may include:
 - `.agents/roadmap.md`;
 - `.agents/memory.md`;
 - other temporary workflow files created during execution.
-```
