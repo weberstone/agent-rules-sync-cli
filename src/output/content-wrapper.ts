@@ -21,11 +21,14 @@
  * are reserved for future use and are preserved as-is.
  */
 
+export const RULES_DIR = '.agents/rules';
+export const SKILLS_DIR = '.agents/skills';
+
 const START_MARKER = '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:START -->';
 const END_MARKER = '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:END -->';
 
-const SKILLS_START = '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->';
-const SKILLS_END = '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->';
+export const SKILLS_START = '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->';
+export const SKILLS_END = '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->';
 
 /** Wrap content in RULES markers (for new files or full overwrites). */
 export function wrapRules(content: string): string {
@@ -112,4 +115,20 @@ function extractFrontmatter(text: string): string {
 /** Wrap content in SKILLS markers. */
 export function wrapSkills(content: string): string {
   return `${SKILLS_START}\n${content}${SKILLS_END}\n`;
+}
+
+/** Check whether a file already contains SKILLS markers. */
+export function hasSkillsMarkers(fileContent: string): boolean {
+  return fileContent.includes(SKILLS_START) && fileContent.includes(SKILLS_END);
+}
+
+/**
+ * Update the skills section in an existing file.
+ * Mirrors `updateRules()` for the SKILLS section.
+ */
+export function updateSkills(existing: string, newContent: string): string {
+  if (hasSkillsMarkers(existing)) {
+    return replaceBetween(existing, SKILLS_START, SKILLS_END, newContent);
+  }
+  return `${existing.trimEnd()}\n\n${wrapSkills(newContent)}`;
 }

@@ -1,17 +1,7 @@
-/**
- * Assembles the final rule files from user choices and discovered templates.
- *
- * The compiler is **pure computation** — it does not write to disk.
- * It takes `Answers` + `DiscoveryService` and returns a `CompiledFile[]`
- * array in priority order. `null` results (missing files) are filtered out.
- *
- * Priority order in the output array:
- *   userprompt → workflow → spec → architecture → frameworks → package-rules
- */
-
 import type { DiscoveryService } from '../discovery/discovery.service.js';
 import type { Answers } from '../prompts/prompts.types.js';
 import type { CompiledFile } from './compiler.types.js';
+import { F } from './compiler.types.js';
 
 const PACKAGE_RULES_HEADER = '# Code Style & Tools';
 
@@ -20,17 +10,38 @@ export class CompilerService {
 
   /**
    * Compile all rule files from the user's answers.
-   *
-   * @param answers — user choices from the questionnaire
-   * @param projectName — used to resolve per-project overrides
-   * @returns files in priority order, with `null` entries filtered out
+   * Priority order: userprompt → workflow → spec → architecture → frameworks → package-rules
    */
   async compile(answers: Answers, projectName: string): Promise<CompiledFile[]> {
     const results: (CompiledFile | null)[] = [
-      await this.compileUserprompt(answers, projectName),
-      await this.compileWorkflow(answers, projectName),
+      await this.compileResource(
+        F.USERPROMPT,
+        answers.hasUserprompt,
+        answers.userpromptSource,
+        answers.userpromptFile,
+        projectName,
+        (arch, file) => this.discovery.getUserpromptContent(arch, file),
+        answers.architecture,
+      ),
+      await this.compileResource(
+        F.WORKFLOW,
+        answers.hasWorkflow,
+        answers.workflowSource,
+        answers.workflowFile,
+        projectName,
+        (arch, file) => this.discovery.getWorkflowContent(arch, file),
+        answers.architecture,
+      ),
       await this.compileSpec(projectName),
-      await this.compileArchitecture(answers, projectName),
+      await this.compileResource(
+        F.ARCHITECTURE,
+        answers.hasArchitecture,
+        answers.architectureSource,
+        answers.architectureFile,
+        projectName,
+        (arch, file) => this.discovery.getArchitectureContent(arch, file),
+        answers.architecture,
+      ),
       ...(await this.compileFrameworks(answers, projectName)),
       await this.compilePackageRules(answers, projectName),
     ];
@@ -38,62 +49,42 @@ export class CompilerService {
     return results.filter((f): f is CompiledFile => f !== null);
   }
 
-  /** Userprompt: project override → general userprompts folder → skip. */
-  private async compileUserprompt(
-    answers: Answers,
+  /** Generic compiler for standard resource types (project override vs general folder). */
+  private async compileResource(
+    filename: string,
+    isEnabled: boolean,
+    source: 'project' | 'general' | null,
+    specificFile: string | null,
     projectName: string,
+    fetchGeneral: (arch: Answers['architecture'], file: string) => Promise<string | null>,
+    architecture: Answers['architecture'],
   ): Promise<CompiledFile | null> {
-    if (!answers.hasUserprompt) return null;
+    if (!isEnabled) return null;
 
     const content =
-      answers.userpromptSource === 'project'
-        ? await this.discovery.getProjectOverride(projectName, 'userprompt.md')
-        : answers.userpromptFile
-          ? await this.discovery.getUserpromptContent(answers.architecture, answers.userpromptFile)
+      source === 'project'
+        ? await this.discovery.getProjectOverride(projectName, filename)
+        : specificFile
+          ? await fetchGeneral(architecture, specificFile)
           : null;
 
     if (content === null) return null;
-
-    return { filename: 'userprompt.md', content };
+    return { filename, content };
   }
 
   /** Spec: only from per-project override. No general spec exists. */
   private async compileSpec(projectName: string): Promise<CompiledFile | null> {
-    const content = await this.discovery.getProjectOverride(projectName, 'spec.md');
-
+    const content = await this.discovery.getProjectOverride(projectName, F.SPEC);
     if (content === null) return null;
-
-    return { filename: 'spec.md', content };
-  }
-
-  /** Architecture: project override → general architectures folder → skip. */
-  private async compileArchitecture(
-    answers: Answers,
-    projectName: string,
-  ): Promise<CompiledFile | null> {
-    if (!answers.hasArchitecture) return null;
-
-    const content =
-      answers.architectureSource === 'project'
-        ? await this.discovery.getProjectOverride(projectName, 'architecture.md')
-        : answers.architectureFile
-          ? await this.discovery.getArchitectureContent(
-              answers.architecture,
-              answers.architectureFile,
-            )
-          : null;
-
-    if (content === null) return null;
-
-    return { filename: 'architecture.md', content };
+    return { filename: F.SPEC, content };
   }
 
   /** Frameworks: project override → general frameworks folder. */
   private async compileFrameworks(answers: Answers, projectName: string): Promise<CompiledFile[]> {
     if (answers.hasProjectFramework) {
-      const content = await this.discovery.getProjectOverride(projectName, 'framework.md');
+      const content = await this.discovery.getProjectOverride(projectName, F.FRAMEWORK);
       if (content === null) return [];
-      return [{ filename: 'framework.md', content }];
+      return [{ filename: F.FRAMEWORK, content }];
     }
 
     const results: CompiledFile[] = [];
@@ -116,9 +107,9 @@ export class CompilerService {
     projectName: string,
   ): Promise<CompiledFile | null> {
     if (answers.hasProjectPackages) {
-      const content = await this.discovery.getProjectOverride(projectName, 'package-rules.md');
+      const content = await this.discovery.getProjectOverride(projectName, F.PACKAGE_RULES);
       if (content === null) return null;
-      return { filename: 'package-rules.md', content };
+      return { filename: F.PACKAGE_RULES, content };
     }
 
     if (answers.packages.length === 0) return null;
@@ -138,25 +129,6 @@ export class CompilerService {
     if (parts.length === 0) return null;
 
     const content = [PACKAGE_RULES_HEADER, ...parts].join('\n\n') + '\n';
-    return { filename: 'package-rules.md', content };
-  }
-
-  /** Workflow: project override → general workflows folder → skip. */
-  private async compileWorkflow(
-    answers: Answers,
-    projectName: string,
-  ): Promise<CompiledFile | null> {
-    if (!answers.hasWorkflow) return null;
-
-    const content =
-      answers.workflowSource === 'project'
-        ? await this.discovery.getProjectOverride(projectName, 'workflow.md')
-        : answers.workflowFile
-          ? await this.discovery.getWorkflowContent(answers.architecture, answers.workflowFile)
-          : null;
-
-    if (content === null) return null;
-
-    return { filename: 'workflow.md', content };
+    return { filename: F.PACKAGE_RULES, content };
   }
 }

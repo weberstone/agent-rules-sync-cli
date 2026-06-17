@@ -20,6 +20,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { logWarning } from './log.js';
 
 const ENV_KEY = 'AGENT_CONTEXT_DIR';
 
@@ -177,8 +178,8 @@ async function resolveContextRoot(sourceDir: string): Promise<string> {
       // Directory doesn't exist or is inaccessible — fall through to default
     }
     // Graceful fallback: warn and use default discovery
-    console.warn(
-      `[WARNING] AGENT_CONTEXT_DIR is set to "${envResult.value}" but "${rulesCandidate}" ` +
+    logWarning(
+      `AGENT_CONTEXT_DIR is set to "${envResult.value}" but "${rulesCandidate}" ` +
         `is not a readable directory. Falling back to default context discovery.`,
     );
   }

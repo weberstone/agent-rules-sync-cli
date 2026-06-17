@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CompilerService } from './compiler.service.js';
 import type { Answers } from '../prompts/prompts.types.js';
 
-function mockDiscovery(overrides: Record<string, unknown> = {}) {
+import { DiscoveryService } from '../discovery/discovery.service.js';
+
+function mockDiscovery(overrides: Record<string, unknown> = {}): DiscoveryService {
   return {
     getAvailableArchitectures: vi.fn(),
     listFrameworks: vi.fn(),
@@ -18,7 +20,7 @@ function mockDiscovery(overrides: Record<string, unknown> = {}) {
     getWorkflowContent: vi.fn().mockResolvedValue(null),
     isFileNonEmpty: vi.fn().mockResolvedValue(false),
     ...overrides,
-  };
+  } as unknown as DiscoveryService;
 }
 
 function answers(overrides: Partial<Answers> = {}): Answers {

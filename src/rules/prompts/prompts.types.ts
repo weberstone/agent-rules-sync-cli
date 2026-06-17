@@ -3,6 +3,8 @@
  */
 
 import type { Architecture } from '../config/config.types.js';
+import type { AgentMeta } from '../generators/generator.types.js';
+import { AGENT_META } from '../generators/generator.types.js';
 
 /** An option presented to the user in a select/multiselect prompt. */
 export interface AgentOption {
@@ -12,18 +14,11 @@ export interface AgentOption {
 
 /**
  * The list of AI agents the user can choose to generate config files for.
- * Each `value` key must match a key in `GeneratorRegistry`.
+ * Derived from AGENT_META — the single source of truth for agent keys and labels.
  */
-export const AVAILABLE_AGENTS: readonly AgentOption[] = [
-  { value: 'claude-code', label: 'Claude Code' },
-  { value: 'cursor', label: 'Cursor' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'gemini-cli', label: 'Gemini CLI' },
-  { value: 'codex', label: 'OpenAI Codex' },
-  { value: 'github-copilot', label: 'GitHub Copilot' },
-  { value: 'continue', label: 'Continue' },
-  { value: 'windsurf', label: 'Windsurf / Devin' },
-];
+export const AVAILABLE_AGENTS: readonly AgentOption[] = AGENT_META.map(
+  ({ key, label }: AgentMeta) => ({ value: key, label }),
+);
 
 /**
  * The complete set of user choices from the questionnaire.

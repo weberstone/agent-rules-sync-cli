@@ -14,15 +14,12 @@
 import path from 'node:path';
 import { readTextFile, writeTextFile } from '../../utils/fs.js';
 import { logWarning } from '../../utils/log.js';
-import type { Config, Architecture } from './config.types.js';
+import type { Config } from './config.types.js';
+import { ALL_ARCHITECTURES } from './config.types.js';
 
 const CONFIG_FILENAME = 'ai-context-config.json';
 
-const VALID_ARCHITECTURES: ReadonlySet<string> = new Set<Architecture>([
-  'frontend',
-  'backend',
-  'fullstack',
-]);
+const VALID_ARCHITECTURES: ReadonlySet<string> = new Set(ALL_ARCHITECTURES);
 
 const VALID_SOURCES: ReadonlySet<string | null> = new Set([null, 'project', 'general']);
 

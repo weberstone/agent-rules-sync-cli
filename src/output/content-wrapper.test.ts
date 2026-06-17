@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { wrapRules, updateRules, hasSyncMarkers, wrapSkills } from './content-wrapper.js';
+import {
+  wrapRules,
+  updateRules,
+  hasSyncMarkers,
+  wrapSkills,
+  hasSkillsMarkers,
+  updateSkills,
+} from './content-wrapper.js';
 
 const sampleContent = '# CLAUDE.md\n\nSome generated rules here.\n';
 
@@ -119,5 +126,48 @@ describe('wrapSkills', () => {
     const startIdx = result.indexOf('SKILLS:START');
     const endIdx = result.indexOf('SKILLS:END');
     expect(startIdx).toBeLessThan(endIdx);
+  });
+});
+
+// ---- Skills update ----
+
+describe('hasSkillsMarkers', () => {
+  it('returns true when SKILLS markers are present', () => {
+    const wrapped = wrapSkills(sampleSkills);
+    expect(hasSkillsMarkers(wrapped)).toBe(true);
+  });
+
+  it('returns false for plain content without markers', () => {
+    expect(hasSkillsMarkers(sampleSkills)).toBe(false);
+  });
+});
+
+describe('updateSkills', () => {
+  it('replaces content between existing SKILLS markers', () => {
+    const wrapped = wrapSkills('old skills');
+    const updated = updateSkills(wrapped, 'new skills');
+    expect(updated).toContain('new skills');
+    expect(updated).not.toContain('old skills');
+    expect(updated).toContain('<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->');
+    expect(updated).toContain('<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->');
+  });
+
+  it('appends wrapped content when no SKILLS markers found', () => {
+    const updated = updateSkills('plain content', 'new skills');
+    expect(updated).toContain('plain content');
+    expect(updated).toContain('SKILLS:START');
+    expect(updated).toContain('new skills');
+  });
+
+  it('preserves non-SKILLS content', () => {
+    const file =
+      '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:START -->\nrules\n<!-- AGENT-CONTEXT-SYNC-CLI:RULES:END -->\n\n' +
+      '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->\nold skills\n<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->\n\n' +
+      'user content';
+    const updated = updateSkills(file, 'new skills');
+    expect(updated).toContain('new skills');
+    expect(updated).not.toContain('old skills');
+    expect(updated).toContain('RULES:START');
+    expect(updated).toContain('user content');
   });
 });

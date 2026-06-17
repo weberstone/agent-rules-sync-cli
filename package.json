@@ -1,6 +1,6 @@
 {
   "name": "agent-context-sync-cli",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Centralized AI agent rules manager — interactive CLI to generate per-project rule files",
   "type": "module",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "format:check": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {
-    "@clack/prompts": "^0.7.0",
+    "@clack/prompts": "^1.5.1",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {

@@ -1,29 +1,29 @@
-# AI Fullstack Workflow & Execution Rules
+# AI Workflow & Execution Rules
 
-These rules define the mandatory fullstack development workflow for this project.
+These rules define the mandatory workflow for this project.
 
 ## 0. Scope Evaluation
 
 Determine task complexity before acting.
 
 ### Micro-Task
-Small, isolated changes confined to a single layer. Execute directly.
+Small, isolated changes. Execute directly.
 
 Examples:
-- localized UI styling tweaks or typos;
-- environment variable updates;
-- single utility function updates;
-- isolated frontend or backend bug fixes.
+- typos;
+- minor styling;
+- single-function updates;
+- localized bug fixes.
 
 Do NOT create `.agents/roadmap.md` or `.agents/memory.md`.
 
 ### Macro-Task
-Use the full workflow for cross-cutting features, architectural changes, or fullstack synchronization:
-- end-to-end features (Database + API Endpoint + UI Component);
-- database schema mutations and migrations;
-- updates to shared types, contracts, DTOs, or API schemas;
-- cross-boundary state management and client-server integration;
-- large-scale refactoring affecting both frontend and backend layers.
+Use the full workflow for:
+- new features;
+- multi-file changes;
+- architectural work;
+- refactors affecting multiple components;
+- tasks requiring staged execution.
 
 ### Unclear Scope
 Briefly explain the ambiguity and ask the user whether to use the Micro or Macro protocol.
@@ -34,8 +34,8 @@ Briefly explain the ambiguity and ask the user whether to use the Micro or Macro
 
 Before implementing a Macro-Task, create or update:
 
-- `.agents/roadmap.md` (Global execution plan for frontend and backend)
-- `.agents/memory.md` (Active scratchpad, boundary contracts, & state)
+- `.agents/roadmap.md` (Global execution plan)
+- `.agents/memory.md` (Active scratchpad & state)
 
 ---
 
@@ -58,10 +58,10 @@ Use these statuses:
 ### Dependencies
 List required prerequisites.
 
-A stage is LOCKED if any dependent layer (e.g., API/DB readiness for frontend consumption) remains `[ ]` or `[-]`.
+A stage is LOCKED if any dependency remains `[ ]` or `[-]`.
 
 ### DoD (Definition of Done)
-Objective completion criteria spanning the affected layers (e.g., data saved, API functional, UI integration successful).
+Objective completion criteria.
 
 ### History
 Never delete completed or obsolete stages. Preserve execution history.
@@ -78,7 +78,7 @@ Guideline:
 1 Stage ≈ 1 User Commit
 ```
 
-*Note: For large end-to-end features, prefer separating backend foundations (migrations, APIs) and frontend integration into distinct sequential stages to keep commits atomic.*
+Do not combine unrelated changes.
 
 ---
 
@@ -87,7 +87,7 @@ Guideline:
 For each new stage:
 
 1. Analyze the task.
-2. Propose implementation options with brief pros/cons covering both frontend and backend implications.
+2. Propose implementation options with brief pros/cons.
 3. Wait for user selection or adjustments.
 4. Synchronize the approved plan to `roadmap.md` and `memory.md`.
 5. Obtain explicit approval before implementation.
@@ -110,16 +110,17 @@ If requirements change:
 
 ## 6. Testing
 
-For testable business logic, API endpoints, and critical UI state:
+For testable business logic:
 
-1. Write unit/integration tests first.
+1. Write tests first (Vitest / NgTest where applicable).
 2. Implement the minimal logic required to satisfy them.
 
 TDD is optional for:
-- raw SQL migrations or mock data seeds;
-- presentation-only components, templates, and raw styling;
-- infrastructure configurations (Docker, CI/CD, build tools);
-- logging statements.
+- styling;
+- templates;
+- documentation;
+- configuration;
+- infrastructure setup.
 
 ---
 
@@ -129,13 +130,13 @@ TDD is optional for:
 
 Never generate placeholders such as:
 
-```text
-// TODO: Connect frontend to API
-// implement backend logic later
+```ts
+// TODO
+// implement later
 // ... rest of code
 ```
 
-Always provide complete, functional implementations across all affected layers within the approved scope.
+Always provide complete implementations within the approved scope.
 
 ### Scope Discipline
 
@@ -147,13 +148,13 @@ Avoid unrelated refactors unless explicitly requested.
 
 ## 8. Verification Protocol
 
-After implementation, execute validations for all affected layers:
+After implementation:
 
 - run lint;
 - run formatter;
-- run typecheck / compiler checks;
-- run application or module builds;
-- run test suite (frontend, backend, and integration).
+- run typecheck;
+- run build;
+- run tests (if applicable).
 
 Rules:
 
@@ -163,7 +164,7 @@ Rules:
 
 If validation fails:
 
-1. Record the error trace and context in `memory.md`.
+1. Record the error trace in `memory.md`.
 2. Document the suspected root cause.
 3. Apply a targeted fix.
 4. Re-run validation.
@@ -179,11 +180,11 @@ Before reporting a stage as complete, update:
 
 They MUST reflect:
 
-- current progress across tech stacks;
+- current progress;
 - completed work;
 - pending tasks;
 - validation status;
-- known integration issues;
+- known issues;
 - next steps.
 
 State synchronization is part of the Definition of Done.
@@ -194,12 +195,16 @@ State synchronization is part of the Definition of Done.
 
 ### Git Commits
 
-The AI MUST NEVER run git commands to commit code.
+The AI MUST NEVER run:
+
+```bash
+git commit
+```
 
 Required flow:
 
 1. AI completes the stage.
-2. User reviews and verifies (via UI interaction, API clients, or automated tests).
+2. User reviews and verifies.
 3. User creates the commit manually.
 4. User instructs the AI to continue.
 
@@ -216,5 +221,4 @@ Artifacts may include:
 
 - `.agents/roadmap.md`;
 - `.agents/memory.md`;
-- other temporary fullstack workflow files created during execution.
-```
+- other temporary workflow files created during execution.

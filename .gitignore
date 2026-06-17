@@ -5,10 +5,12 @@
 
 # ai
 /context-primary/*
+.continue/*
 .agents/*
 docs/*
 CLAUDE.md
 AGENTS.md
+GEMINI.md
 
 # Logs
 logs

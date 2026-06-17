@@ -11,16 +11,6 @@
  * All services are injected via constructor (dependency injection).
  */
 
-import {
-  select,
-  confirm,
-  isCancel,
-  cancel,
-  outro,
-  spinner,
-  intro,
-  multiselect,
-} from '../rules/prompts/clack-adapter.js';
 import { ConfigService } from '../rules/config/config.service.js';
 import type { Architecture, Config } from '../rules/config/config.types.js';
 import { DiscoveryService } from '../rules/discovery/discovery.service.js';
@@ -29,31 +19,24 @@ import type { Answers } from '../rules/prompts/prompts.types.js';
 import { AVAILABLE_AGENTS } from '../rules/prompts/prompts.types.js';
 import { CompilerService } from '../rules/compiler/compiler.service.js';
 import type { CompiledFile } from '../rules/compiler/compiler.types.js';
+import { F, RULE_FILE_SET } from '../rules/compiler/compiler.types.js';
 import { generatorRegistry } from '../rules/generators/generator.service.js';
 import type { GeneratorContext } from '../rules/generators/generator.types.js';
 import { OutputService } from '../output/output.service.js';
+import { RULES_DIR, SKILLS_DIR } from '../output/content-wrapper.js';
 
 import { SkillsDiscoveryService } from '../skills/discovery/skills-discovery.service.js';
 import { SkillsPromptService } from '../skills/prompts/skills-prompts.service.js';
 import { SkillsCompilerService } from '../skills/compiler/skills-compiler.service.js';
 import type { ParsedSkill } from '../skills/types/skills.types.js';
-import { logError, logPlain } from '../utils/log.js';
 import pc from 'picocolors';
 import fs from 'node:fs/promises';
+import type { Terminal } from './terminal.interface.js';
 
 // Composed color helpers — return (s: string) => string for use with hr()/padLine()
 const boldMagenta = (s: string) => pc.bold(pc.magenta(s));
 const boldGreen = (s: string) => pc.bold(pc.green(s));
 const boldCyan = (s: string) => pc.bold(pc.cyan(s));
-
-const KNOWN_RULE_FILES = new Set([
-  'userprompt.md',
-  'workflow.md',
-  'spec.md',
-  'architecture.md',
-  'framework.md',
-  'package-rules.md',
-]);
 
 export class OrchestratorService {
   constructor(
@@ -65,6 +48,7 @@ export class OrchestratorService {
     private readonly skillsDiscovery: SkillsDiscoveryService,
     private readonly skillsPrompt: SkillsPromptService,
     private readonly skillsCompiler: SkillsCompilerService,
+    private readonly terminal: Terminal,
     private readonly projectName: string,
     private readonly rulesDir: string,
     private readonly targetDir: string,
@@ -74,7 +58,7 @@ export class OrchestratorService {
     if (!(await this.preflightRulesDir())) return;
     if (!(await this.preflightWriteAccess())) return;
 
-    if (process.stdin.isTTY) intro('agent-context-sync-cli');
+    if (process.stdin.isTTY) this.terminal.intro('agent-context-sync-cli');
 
     // 1. Config discovery
     const configAnswers = await this.resolveConfig();
@@ -84,8 +68,9 @@ export class OrchestratorService {
     // Handled during generation — no pre-check needed, resolveWriteMode handles it
 
     // 3. Rules branch
+    const usingExistingConfig = !!configAnswers.architecture;
     let ruleFiles: CompiledFile[] = [];
-    const syncRules = await this.askSyncRules();
+    const syncRules = usingExistingConfig ? true : await this.askSyncRules();
     if (syncRules) {
       let rulesAnswers: Answers | null;
       if (configAnswers.architecture) {
@@ -99,11 +84,11 @@ export class OrchestratorService {
       // Resolve project-vs-general name conflicts before compiling
       await this.resolveRuleConflicts(rulesAnswers);
 
-      const s = spinner();
+      const s = this.terminal.spinner();
       s.start('Compiling rules from templates...');
       ruleFiles = await this.compiler.compile(rulesAnswers, this.projectName);
       await this.output.writeRulesDir(ruleFiles);
-      s.stop('Rules compiled and saved to .agents/rules/');
+      s.stop(`Rules compiled and saved to ${RULES_DIR}/`);
 
       // Merge rules answers into config answers
       Object.assign(configAnswers, rulesAnswers);
@@ -111,31 +96,43 @@ export class OrchestratorService {
 
     // 4. Skills branch
     let copiedSkills: ParsedSkill[] = [];
-    const syncSkills = await this.askSyncSkills();
+    const syncSkills = usingExistingConfig
+      ? !!configAnswers.syncSkills
+      : await this.askSyncSkills();
     if (syncSkills) {
-      const skillsAnswers = await this.skillsPrompt.run(this.projectName);
-      if (skillsAnswers === null) return;
+      let selectedSkillNames: string[];
+      if (usingExistingConfig && Array.isArray(configAnswers.skills)) {
+        selectedSkillNames = configAnswers.skills as string[];
+      } else {
+        const skillsAnswers = await this.skillsPrompt.run(this.projectName);
+        if (skillsAnswers === null) return;
+        selectedSkillNames = skillsAnswers.selectedSkills;
+      }
 
-      if (skillsAnswers.selectedSkills.length > 0) {
+      if (selectedSkillNames.length > 0) {
         const allSkills = [
           ...(await this.skillsDiscovery.listProjectSkills(this.projectName)),
           ...(await this.skillsDiscovery.listGeneralSkills()),
         ];
-        const selected = allSkills.filter((s) => skillsAnswers.selectedSkills.includes(s.name));
-        const s = spinner();
+        const selected = allSkills.filter((s) => selectedSkillNames.includes(s.name));
+        const s = this.terminal.spinner();
         s.start('Copying skills...');
         const names = await this.skillsCompiler.compile(selected);
         copiedSkills = selected.filter((s) => names.includes(s.name));
-        s.stop('Skills copied to .agents/skills/');
+        s.stop(`Skills copied to ${SKILLS_DIR}/`);
       }
 
       configAnswers.syncSkills = true;
-      configAnswers.skills = skillsAnswers.selectedSkills;
+      configAnswers.skills = selectedSkillNames;
     }
 
     // 5. Agent selection (always, at the end)
     let agents: string[];
-    if (!process.stdin.isTTY && Array.isArray(configAnswers.agents)) {
+    const useConfigAgents =
+      (!process.stdin.isTTY || usingExistingConfig) &&
+      Array.isArray(configAnswers.agents) &&
+      (configAnswers.agents as string[]).length > 0;
+    if (useConfigAgents) {
       agents = configAnswers.agents as string[];
     } else {
       const result = await this.stepAgentSelection();
@@ -169,10 +166,12 @@ export class OrchestratorService {
       await this.showGitignoreWarning();
       this.showStarRequest();
     } else {
-      logPlain('Rules synchronized successfully.');
-      if (ruleFiles.length > 0) logPlain(`.agents/rules/: ${ruleFiles.length} files`);
-      if (copiedSkills.length > 0) logPlain(`.agents/skills/: ${copiedSkills.length} skills`);
-      if (writtenFiles.length > 0) logPlain(`Agent configs: ${writtenFiles.join(', ')}`);
+      this.terminal.logPlain('Rules synchronized successfully.');
+      if (ruleFiles.length > 0) this.terminal.logPlain(`${RULES_DIR}/: ${ruleFiles.length} files`);
+      if (copiedSkills.length > 0)
+        this.terminal.logPlain(`${SKILLS_DIR}/: ${copiedSkills.length} skills`);
+      if (writtenFiles.length > 0)
+        this.terminal.logPlain(`Agent configs: ${writtenFiles.join(', ')}`);
     }
   }
 
@@ -183,7 +182,7 @@ export class OrchestratorService {
       await fs.access(this.rulesDir, fs.constants.R_OK);
       return true;
     } catch (err) {
-      logError(
+      this.terminal.logError(
         `Rules directory not accessible: ${this.rulesDir}\n` +
           `${(err as Error).message}\n` +
           'Make sure the agent-context-sync-cli package includes the rules/ directory.',
@@ -197,7 +196,7 @@ export class OrchestratorService {
       await fs.access(this.targetDir, fs.constants.W_OK);
       return true;
     } catch (err) {
-      logError(
+      this.terminal.logError(
         `Cannot write to target directory: ${this.targetDir}\n` +
           `${(err as Error).message}\n` +
           'Check directory permissions and try again.',
@@ -213,7 +212,9 @@ export class OrchestratorService {
 
     if (existingConfig === null) {
       if (!process.stdin.isTTY) {
-        logError('No configuration file found and no interactive terminal available.');
+        this.terminal.logError(
+          'No configuration file found and no interactive terminal available.',
+        );
         return null;
       }
       return {};
@@ -223,12 +224,12 @@ export class OrchestratorService {
       return this.configToAnswers(existingConfig);
     }
 
-    const useExisting = await confirm(
+    const useExisting = await this.terminal.confirm(
       'Existing configuration file found. Use it to regenerate rules, or start a fresh questionnaire?',
     );
 
-    if (isCancel(useExisting)) {
-      cancel('Operation cancelled by user.');
+    if (this.terminal.isCancel(useExisting)) {
+      this.terminal.cancel('Operation cancelled by user.');
       return null;
     }
 
@@ -244,15 +245,15 @@ export class OrchestratorService {
 
     const hasProjectUserprompt = await this.discovery.hasProjectOverride(
       config.projectName,
-      'userprompt.md',
+      F.USERPROMPT,
     );
     const hasProjectWorkflow = await this.discovery.hasProjectOverride(
       config.projectName,
-      'workflow.md',
+      F.WORKFLOW,
     );
     const hasProjectArchitecture = await this.discovery.hasProjectOverride(
       config.projectName,
-      'architecture.md',
+      F.ARCHITECTURE,
     );
 
     let userpromptSource: 'project' | 'general' | null = null;
@@ -300,10 +301,10 @@ export class OrchestratorService {
       // In non-TTY mode, sync rules if the config has architecture data
       return true;
     }
-    const proceed = await confirm({
+    const proceed = await this.terminal.confirm({
       message: 'Sync rules for this project?',
     });
-    return !isCancel(proceed) && !!proceed;
+    return !this.terminal.isCancel(proceed) && !!proceed;
   }
 
   private async askSyncSkills(): Promise<boolean> {
@@ -312,10 +313,10 @@ export class OrchestratorService {
       const config = await this.configService.read();
       return config?.syncSkills === true;
     }
-    const proceed = await confirm({
+    const proceed = await this.terminal.confirm({
       message: 'Sync skills for this project?',
     });
-    return !isCancel(proceed) && !!proceed;
+    return !this.terminal.isCancel(proceed) && !!proceed;
   }
 
   // ---- Agent selection ----
@@ -326,14 +327,14 @@ export class OrchestratorService {
       label: a.label,
     }));
 
-    const choices = await multiselect({
+    const choices = await this.terminal.multiselect({
       message: '🤖 Select AI agents to generate config files for:',
       options,
       required: false,
     });
 
-    if (isCancel(choices)) {
-      cancel('🚫 Cancelled by user.');
+    if (this.terminal.isCancel(choices)) {
+      this.terminal.cancel('🚫 Cancelled by user.');
       return null;
     }
 
@@ -354,7 +355,7 @@ export class OrchestratorService {
       rulesAnswers,
       projectName,
       arch,
-      fileName: 'userprompt.md',
+      fileName: F.USERPROMPT,
       folderName: 'userprompts',
       listFn: (a) => this.discovery.listUserprompts(a),
       selectMessage: 'Select a userprompt from the general folder:',
@@ -374,7 +375,7 @@ export class OrchestratorService {
       rulesAnswers,
       projectName,
       arch,
-      fileName: 'architecture.md',
+      fileName: F.ARCHITECTURE,
       folderName: 'architectures',
       listFn: (a) => this.discovery.listArchitectures(a),
       selectMessage: 'Select architecture guidelines from the general folder:',
@@ -394,7 +395,7 @@ export class OrchestratorService {
       rulesAnswers,
       projectName,
       arch,
-      fileName: 'workflow.md',
+      fileName: F.WORKFLOW,
       folderName: 'workflows',
       listFn: (a) => this.discovery.listWorkflows(a),
       selectMessage: 'Select a workflow from the general folder:',
@@ -414,7 +415,7 @@ export class OrchestratorService {
     await this.resolveSimpleConflict({
       projectName,
       arch,
-      fileName: 'framework.md',
+      fileName: F.FRAMEWORK,
       folderName: 'frameworks',
       listFn: (a) => this.discovery.listFrameworks(a),
       onResult: (useProject) => {
@@ -425,7 +426,7 @@ export class OrchestratorService {
     await this.resolveSimpleConflict({
       projectName,
       arch,
-      fileName: 'package-rules.md',
+      fileName: F.PACKAGE_RULES,
       folderName: 'packages',
       listFn: (a) => this.discovery.listPackages(a),
       onResult: (useProject) => {
@@ -460,7 +461,7 @@ export class OrchestratorService {
 
     if (!hasProject || items.length === 0) return;
 
-    const choice = await select({
+    const choice = await this.terminal.select({
       message: `${fileName} exists in both project (${fileName}) and general (${folderName}/). Which one to use?`,
       options: [
         { value: 'project', label: `Project version (${fileName})` },
@@ -468,14 +469,17 @@ export class OrchestratorService {
       ],
     });
 
-    if (isCancel(choice)) return;
+    if (this.terminal.isCancel(choice)) return;
 
     if (choice === 'project') {
       applyProject();
     } else {
       const fileOptions = items.map((name) => ({ value: name, label: name }));
-      const fileChoice = await select({ message: selectMessage, options: fileOptions });
-      if (!isCancel(fileChoice)) {
+      const fileChoice = await this.terminal.select({
+        message: selectMessage,
+        options: fileOptions,
+      });
+      if (!this.terminal.isCancel(fileChoice)) {
         applyGeneral(fileChoice);
       }
     }
@@ -495,7 +499,7 @@ export class OrchestratorService {
 
     if (!hasProject || items.length === 0) return;
 
-    const choice = await select({
+    const choice = await this.terminal.select({
       message: `${fileName} exists in both project (${fileName}) and general (${folderName}/). Which one to use?`,
       options: [
         { value: 'project', label: `Project version (${fileName})` },
@@ -503,7 +507,7 @@ export class OrchestratorService {
       ],
     });
 
-    if (!isCancel(choice)) {
+    if (!this.terminal.isCancel(choice)) {
       onResult(choice === 'project');
     }
   }
@@ -517,19 +521,22 @@ export class OrchestratorService {
     const hasMarkers = await this.output.hasSyncMarkersInFile(filename);
     if (hasMarkers) return 'update';
 
-    const choice = await select(`File "${filename}" already exists. What should be done?`, [
-      {
-        value: 'update',
-        label: 'Update rules section — Add AGENT-CONTEXT-SYNC-CLI block (Recommended)',
-      },
-      {
-        value: 'overwrite',
-        label: 'Overwrite — Replace entire file with generated rules',
-      },
-      { value: 'skip', label: 'Skip — Do not touch this file' },
-    ]);
+    const choice = await this.terminal.select({
+      message: `File "${filename}" already exists. What should be done?`,
+      options: [
+        {
+          value: 'update',
+          label: 'Update rules section — Add AGENT-CONTEXT-SYNC-CLI block (Recommended)',
+        },
+        {
+          value: 'overwrite',
+          label: 'Overwrite — Replace entire file with generated rules',
+        },
+        { value: 'skip', label: 'Skip — Do not touch this file' },
+      ],
+    });
 
-    if (isCancel(choice)) return 'skip';
+    if (this.terminal.isCancel(choice)) return 'skip';
 
     return choice as 'update' | 'overwrite' | 'skip';
   }
@@ -561,8 +568,8 @@ export class OrchestratorService {
     ];
 
     const parts: string[] = [];
-    if (ruleFiles.length > 0) parts.push(pc.dim('📁 .agents/rules/ created'));
-    if (copiedSkills.length > 0) parts.push(pc.dim('🛠️  .agents/skills/ created'));
+    if (ruleFiles.length > 0) parts.push(pc.dim(`📁 ${RULES_DIR}/ created`));
+    if (copiedSkills.length > 0) parts.push(pc.dim(`🛠️  ${SKILLS_DIR}/ created`));
     parts.push(pc.dim('⚙️  Agent config files generated'));
     parts.push(pc.dim('💾 Configuration saved'));
 
@@ -575,7 +582,7 @@ export class OrchestratorService {
       '',
     ];
 
-    outro(art.map((line, i) => line + (info[i] ?? '')).join('\n'));
+    this.terminal.outro(art.map((line, i) => line + (info[i] ?? '')).join('\n'));
 
     // Files box
     const files: string[] = [];
@@ -601,33 +608,37 @@ export class OrchestratorService {
       ...files.map((f) => this.padLine('      ' + f, pc.cyan)),
     ];
 
-    outro(lines.join('\n'));
+    this.terminal.outro(lines.join('\n'));
   }
 
   private async showGitignoreWarning(): Promise<void> {
     const inGitignore = await this.output.isInGitignore('ai-context-config.json');
     if (!inGitignore) {
-      logPlain('');
-      logPlain(
+      this.terminal.logPlain('');
+      this.terminal.logPlain(
         this.padLine('ℹ️  "ai-context-config.json" was created to store your preferences.', pc.dim),
       );
-      logPlain(
+      this.terminal.logPlain(
         this.padLine("   If you don't want to commit it, add it to your .gitignore file.", pc.dim),
       );
     }
   }
 
   private showStarRequest(): void {
-    logPlain('');
-    logPlain(this.hr(boldMagenta));
-    logPlain(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
-    logPlain('');
-    logPlain(this.padLine('If this tool helps you build better projects,', pc.magenta));
-    logPlain(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
-    logPlain('');
-    logPlain(this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan));
-    logPlain(this.hr(boldMagenta));
-    logPlain('');
+    this.terminal.logPlain('');
+    this.terminal.logPlain(this.hr(boldMagenta));
+    this.terminal.logPlain(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
+    this.terminal.logPlain('');
+    this.terminal.logPlain(
+      this.padLine('If this tool helps you build better projects,', pc.magenta),
+    );
+    this.terminal.logPlain(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
+    this.terminal.logPlain('');
+    this.terminal.logPlain(
+      this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan),
+    );
+    this.terminal.logPlain(this.hr(boldMagenta));
+    this.terminal.logPlain('');
   }
 }
 
@@ -637,17 +648,15 @@ function buildGeneratorContext(ruleFiles: CompiledFile[], skills: ParsedSkill[])
   const filenames = new Set(ruleFiles.map((f) => f.filename));
 
   return {
-    hasUserprompt: filenames.has('userprompt.md'),
-    hasWorkflow: filenames.has('workflow.md'),
-    hasSpec: filenames.has('spec.md'),
-    hasArchitecture: filenames.has('architecture.md'),
-    frameworkFiles: ruleFiles
-      .filter((f) => !KNOWN_RULE_FILES.has(f.filename))
-      .map((f) => f.filename),
-    hasPackageRules: filenames.has('package-rules.md'),
+    hasUserprompt: filenames.has(F.USERPROMPT),
+    hasWorkflow: filenames.has(F.WORKFLOW),
+    hasSpec: filenames.has(F.SPEC),
+    hasArchitecture: filenames.has(F.ARCHITECTURE),
+    frameworkFiles: ruleFiles.filter((f) => !RULE_FILE_SET.has(f.filename)).map((f) => f.filename),
+    hasPackageRules: filenames.has(F.PACKAGE_RULES),
     skills: skills.map((s) => ({
       name: s.name,
-      path: `.agents/skills/${s.name}${s.type === 'folder' ? '/SKILL.md' : '.md'}`,
+      path: `${SKILLS_DIR}/${s.name}${s.type === 'folder' ? '/SKILL.md' : '.md'}`,
       description: s.description,
     })),
   };

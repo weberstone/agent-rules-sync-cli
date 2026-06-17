@@ -5,8 +5,18 @@
  * import only the type, not the entire service with its dependencies.
  */
 
+/** Every supported architecture. Single source of truth — type, validation set, and labels all derive from this. */
+export const ALL_ARCHITECTURES = ['frontend', 'backend', 'fullstack'] as const;
+
 /** Supported architecture types — corresponds to `context/rules/<arch>/` directories. */
-export type Architecture = 'frontend' | 'backend' | 'fullstack';
+export type Architecture = (typeof ALL_ARCHITECTURES)[number];
+
+/** Human-readable labels for each architecture. */
+export const ARCH_LABELS: Record<Architecture, string> = {
+  frontend: 'Frontend',
+  backend: 'Backend',
+  fullstack: 'Fullstack',
+};
 
 /**
  * Shape of the persisted configuration file.

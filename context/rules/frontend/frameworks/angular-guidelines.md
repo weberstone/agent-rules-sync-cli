@@ -1,8 +1,40 @@
-# Angular Rules
+# Angular 22+ Specific Rules
 
-1. Components & Architecture: Standalone by default (NEVER explicitly write `standalone: true` inside decorators as it is redundant). Strictly use the `inject()` function for Dependency Injection—constructor injection is FORBIDDEN. Keep components single-responsibility and prefer inline templates only for small, focused components.
-2. Signal-Driven State: Mandate signals for all local state management. Use `computed()` for derived data. Use `input()` and `output()` signal functions instead of legacy decorators. NEVER use `mutate` on signals; use `update()` or `set()` purely and predictably.
-3. Templates & Control Flow: Enforce native control flow (`@if`, `@for`, `@switch`) exclusively—legacy structural directives (`*ngIf`, `*ngFor`) are STRICTLY BANNED. Do NOT use `ngClass` or `ngStyle`; use native `[class.name]` and `[style.property]` bindings instead. Use the async pipe for Observables.
-4. Host Elements: BANNED: `@HostBinding` and `@HostListener` decorators. All host bindings and listeners MUST be declared inside the `host` configuration object of the `@Component` or `@Directive` decorator.
-5. Forms & Media: Enforce Pure Reactive Forms over template-driven forms. Use `NgOptimizedImage` for all static, non-base64 images.
-6. TypeScript & A11y: Enforce strict type checking. Prefer type inference when obvious, use `unknown` for uncertainty, and completely BAN the `any` type. Code MUST pass all AXE checks and WCAG AA minimums (focus management, ARIA attributes).
+## 1. Core Paradigm & DI
+* Zoneless: no Zone.js, no microtask reliance
+* DI: inject() only. Constructor DI banned
+* Standalone default. standalone: true not required
+
+## 2. Signals-First (RxJS exclusion)
+* State: signals only (signal)
+* Derived: computed()
+* API: input(), output(), model()
+* RxJS in components/templates: forbidden
+* Observable/Subject/BehaviorSubject: forbidden in UI layer
+* RxJS allowed only in infra services (ws/polling/complex streams)
+* RxJS → toSignal() immediately at service boundary (strictly in Injection Context)
+* Clean up remaining RxJS streams via takeUntilDestroyed()
+
+## 3. Templates & Layout
+* Control flow only: @if, @for, @switch
+* *ngIf/*ngFor banned
+* [class] instead of ngClass
+* [style.*] instead of ngStyle
+* ngClass/ngStyle banned
+* @HostBinding/@HostListener banned
+* host:{} only
+
+## 4. SSR / SSG / Hydration
+* No window/document/navigator
+* Use inject(DOCUMENT) / isPlatformBrowser
+* DOM access only in afterNextRender()/afterRender()
+* No DOM in constructor/ngOnInit
+* No SSR/client state mismatch (time, viewport, etc.)
+
+## 5. Forms / Media / CDK
+* Strict typed reactive forms only
+* UntypedFormGroup + template-driven forms banned
+* NgOptimizedImage required (ngSrc)
+* width/height or fill required
+* Prefer Angular CDK (overlay/scrolling/a11y)
+* New 3rd-party NPM libs STRICTLY FORBIDDEN without explicit user consent (ask, justify, wait)

@@ -15,9 +15,38 @@ import fs from 'node:fs/promises';
 import { writeTextFile, ensureDir, readTextFile, isEnoent } from '../utils/fs.js';
 import { logWarning } from '../utils/log.js';
 import type { CompiledFile } from '../rules/compiler/compiler.types.js';
-import { wrapRules, updateRules, hasSyncMarkers } from './content-wrapper.js';
+import {
+  wrapRules,
+  updateRules,
+  hasSyncMarkers,
+  wrapSkills,
+  updateSkills,
+  SKILLS_START,
+  SKILLS_END,
+  RULES_DIR,
+} from './content-wrapper.js';
 
-const RULES_DIR = '.agents/rules';
+/**
+ * Split generator output into rules and skills portions.
+ * The generator output may contain pre-wrapped SKILLS markers.
+ * Returns { rules, skills } where skills is bare content (null if none).
+ */
+function splitContent(content: string): { rules: string; skills: string | null } {
+  const startIdx = content.indexOf(SKILLS_START);
+  if (startIdx === -1) return { rules: content, skills: null };
+
+  const endIdx = content.indexOf(SKILLS_END, startIdx);
+  if (endIdx === -1) return { rules: content, skills: null };
+
+  const before = content.slice(0, startIdx);
+  const skillsBody = content.slice(startIdx + SKILLS_START.length, endIdx).trim();
+  const after = content.slice(endIdx + SKILLS_END.length);
+
+  return {
+    rules: (before + after).trim(),
+    skills: skillsBody || null,
+  };
+}
 
 export class OutputService {
   private readonly rulesDir: string;
@@ -80,11 +109,13 @@ export class OutputService {
   /**
    * Write an agent config file.
    *
+   * RULES and SKILLS are written as sibling sections (not nested).
+   *
    * @param mode
-   *  - `create`: new file, wrapped in SYNC markers
-   *  - `overwrite`: full replacement, wrapped in SYNC markers
-   *  - `update`: replace inside existing markers, or prepend wrapped block
-   *    if no markers found (preserves user content outside markers)
+   *  - `create`: new file with RULES and SKILLS wrapped separately
+   *  - `overwrite`: full replacement
+   *  - `update`: replace inside existing markers, preserving user content
+   *    outside both RULES and SKILLS markers
    */
   async writeAgentFile(
     relativePath: string,
@@ -94,11 +125,20 @@ export class OutputService {
     const filePath = path.join(this.targetDir, relativePath);
     await ensureDir(path.dirname(filePath));
 
+    const { rules, skills } = splitContent(content);
+
     if (mode === 'update') {
       const existing = await readTextFile(filePath);
-      content = updateRules(existing, content);
+      let result = updateRules(existing, rules);
+      if (skills) {
+        result = updateSkills(result, skills);
+      }
+      content = result;
     } else {
-      content = wrapRules(content);
+      content = wrapRules(rules);
+      if (skills) {
+        content += '\n' + wrapSkills(skills);
+      }
     }
 
     await writeTextFile(filePath, content);

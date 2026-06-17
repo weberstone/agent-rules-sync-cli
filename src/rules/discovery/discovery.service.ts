@@ -13,11 +13,10 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import type { Architecture } from '../config/config.types.js';
+import { ALL_ARCHITECTURES } from '../config/config.types.js';
 import type { TemplateCategory } from './discovery.types.js';
 import { logWarning } from '../../utils/log.js';
 import { isEnoent } from '../../utils/fs.js';
-
-const ALL_ARCHITECTURES: readonly Architecture[] = ['frontend', 'backend', 'fullstack'];
 
 export class DiscoveryService {
   /**

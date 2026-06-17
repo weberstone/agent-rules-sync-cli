@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.3] — 2026-06-18
+
+### Changed
+- Optimized agent directives: enforced rule application during initialization for all generators.
+- Improved skills handling: fixed file paths, restructured the skills section (now a sibling to rules), and added synchronization logic.
+- Major refactoring (DRY): consolidated agent configurations, architecture constants, filenames, and markers into single sources of truth.
+- Centralized generator logic: extracted duplicated code and text strings into shared constants and a single wrapper function.
+
+### Fixed
+- Orchestrator: Fixed the "Use existing config" flow to correctly skip all interactive prompts and regenerate directly from saved values.
+
+
 ## [0.3.2] — 2026-06-17
 
 ### Changed
@@ -15,9 +27,7 @@
 - Removed dead `nameConflict` flag from `ParsedSkill` type and simplified
   `SkillsDiscoveryService.addSkill()`.
 
-
-
-
+  
 ## [0.3.1] — 2026-06-16
 
 ### Changed

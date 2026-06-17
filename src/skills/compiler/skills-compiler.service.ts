@@ -11,9 +11,8 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { ensureDir } from '../../utils/fs.js';
 import { logWarning } from '../../utils/log.js';
+import { SKILLS_DIR } from '../../output/content-wrapper.js';
 import type { ParsedSkill } from '../types/skills.types.js';
-
-const SKILLS_DIR = '.agents/skills';
 
 export class SkillsCompilerService {
   private readonly skillsDir: string;

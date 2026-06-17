@@ -115,6 +115,48 @@ describe('writeAgentFile', () => {
     expect(content).toContain('User content.');
   });
 
+  it('writes RULES and SKILLS as sibling sections (create mode)', async () => {
+    const content =
+      '# Claude Rules\n\n' +
+      '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->\n' +
+      '| Skill | Path | Description |\n' +
+      '| test-skill | `@.agents/skills/test-skill.md` | Test |\n' +
+      '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->\n';
+
+    await service.writeAgentFile('CLAUDE.md', content, 'create');
+    const text = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
+
+    // RULES and SKILLS are siblings, not nested
+    const rulesStart = text.indexOf('RULES:START');
+    const rulesEnd = text.indexOf('RULES:END');
+    const skillsStart = text.indexOf('SKILLS:START');
+    const skillsEnd = text.indexOf('SKILLS:END');
+
+    expect(rulesStart).toBeLessThan(rulesEnd);
+    expect(skillsStart).toBeLessThan(skillsEnd);
+    // SKILLS comes after RULES (sibling)
+    expect(rulesEnd).toBeLessThan(skillsStart);
+  });
+
+  it('updates both RULES and SKILLS sections in update mode', async () => {
+    const initial =
+      '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:START -->\nold rules\n<!-- AGENT-CONTEXT-SYNC-CLI:RULES:END -->\n\n' +
+      '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->\nold skills\n<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->\n';
+    await fs.writeFile(path.join(tmpDir, 'CLAUDE.md'), initial, 'utf-8');
+
+    const newContent =
+      '# New Rules\n\n' +
+      '<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:START -->\nnew skills\n<!-- AGENT-CONTEXT-SYNC-CLI:SKILLS:END -->\n';
+
+    await service.writeAgentFile('CLAUDE.md', newContent, 'update');
+    const text = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
+
+    expect(text).toContain('New Rules');
+    expect(text).not.toContain('old rules');
+    expect(text).toContain('new skills');
+    expect(text).not.toContain('old skills');
+  });
+
   it('creates parent directories for nested paths', async () => {
     await service.writeAgentFile('.cursor/rules/00-agent-rules.mdc', '# Rules', 'create');
 

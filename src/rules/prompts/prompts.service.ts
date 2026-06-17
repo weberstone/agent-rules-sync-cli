@@ -13,13 +13,10 @@
 import pc from 'picocolors';
 import { intro, outro, cancel, isCancel, confirm, select, multiselect } from './clack-adapter.js';
 import type { Architecture } from '../config/config.types.js';
+import { ARCH_LABELS } from '../config/config.types.js';
+import { F } from '../compiler/compiler.types.js';
 import type { DiscoveryService } from '../discovery/discovery.service.js';
 import type { Answers } from './prompts.types.js';
-const ARCH_LABELS: Record<Architecture, string> = {
-  frontend: 'Frontend',
-  backend: 'Backend',
-  fullstack: 'Fullstack',
-};
 
 const SKIP_OPTION = { value: '__skip__', label: '⊘ Skip (no rules of this type)' };
 
@@ -94,7 +91,7 @@ export class PromptService {
 
   /** Check if a per-project spec.md exists. If not, ask the user whether to continue. */
   private async stepCheckSpec(projectName: string): Promise<boolean> {
-    const hasSpec = await this.discovery.hasProjectOverride(projectName, 'spec.md');
+    const hasSpec = await this.discovery.hasProjectOverride(projectName, F.SPEC);
 
     if (hasSpec) return true;
 
@@ -161,7 +158,7 @@ export class PromptService {
     userpromptSource: 'project' | 'general' | null;
     userpromptFile: string | null;
   } | null> {
-    const hasProject = await this.discovery.hasProjectOverride(projectName, 'userprompt.md');
+    const hasProject = await this.discovery.hasProjectOverride(projectName, F.USERPROMPT);
     const available = await this.discovery.listUserprompts(architecture);
 
     if (hasProject) {
@@ -237,7 +234,7 @@ export class PromptService {
     architectureSource: 'project' | 'general' | null;
     architectureFile: string | null;
   } | null> {
-    const hasProject = await this.discovery.hasProjectOverride(projectName, 'architecture.md');
+    const hasProject = await this.discovery.hasProjectOverride(projectName, F.ARCHITECTURE);
     const available = await this.discovery.listArchitectures(architecture);
 
     if (hasProject) {
@@ -311,7 +308,7 @@ export class PromptService {
     architecture: Architecture,
     projectName: string,
   ): Promise<{ frameworks: string[]; hasProjectFramework: boolean } | null> {
-    const hasProject = await this.discovery.hasProjectOverride(projectName, 'framework.md');
+    const hasProject = await this.discovery.hasProjectOverride(projectName, F.FRAMEWORK);
     const available = await this.discovery.listFrameworks(architecture);
 
     if (hasProject) {
@@ -392,7 +389,7 @@ export class PromptService {
     architecture: Architecture,
     projectName: string,
   ): Promise<{ packages: string[]; hasProjectPackages: boolean } | null> {
-    const hasProject = await this.discovery.hasProjectOverride(projectName, 'package-rules.md');
+    const hasProject = await this.discovery.hasProjectOverride(projectName, F.PACKAGE_RULES);
     const available = await this.discovery.listPackages(architecture);
 
     if (hasProject) {
@@ -462,7 +459,7 @@ export class PromptService {
     workflowSource: 'project' | 'general' | null;
     workflowFile: string | null;
   } | null> {
-    const hasProject = await this.discovery.hasProjectOverride(projectName, 'workflow.md');
+    const hasProject = await this.discovery.hasProjectOverride(projectName, F.WORKFLOW);
     const available = await this.discovery.listWorkflows(architecture);
 
     if (hasProject) {

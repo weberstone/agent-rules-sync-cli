@@ -1,38 +1,52 @@
-# Architecture & Design Patterns
-To prevent hallucinations and "reinventing the wheel", all architectural decisions must strictly adhere to established software engineering patterns and robust fullstack practices.
+# Unified Architecture, Design Patterns & Code Style
 
-## 1. Core Literature & Principles
-Your solutions should be heavily inspired by the following industry-standard books:
-- **"Design Patterns: Elements of Reusable Object-Oriented Software" (GoF)**: Use established creational, structural, and behavioral patterns (e.g., Factory, Strategy, Observer, Decorator) instead of custom ad-hoc structures.
-- **"Clean Architecture" by Robert C. Martin**: Separate concerns. Keep business logic independent of external frameworks. Depend on abstractions, not concretions.
-- **"Domain-Driven Design" (DDD) by Eric Evans**: For complex business logic, organize code around domains, aggregates, entities, and value objects.
-- **"Designing Data-Intensive Applications" by Martin Kleppmann**: Design reliable, scalable, and maintainable systems with a deep understanding of data storage, distributed systems, and concurrency.
+Strictly adhere to established software engineering principles. Zero custom ad-hoc structures. No implementation hallucinations.
+
+## 1. Core Principles & Literature
+* **GoF & Enterprise Patterns:** Use standard patterns (Factory, Strategy, Observer, Decorator, Repository, DI). No custom alternatives.
+* **Clean Architecture & SOLID:** Isolate core business logic from frameworks, UI, and external data drivers. Depend on abstractions, not concretions.
+* **DDD (Domain-Driven Design):** Organize complex software layers around domains, aggregates, entities, and value objects.
+* **"Clean Code" (Robert C. Martin):** Functions must be small, doing strictly one thing. Prioritize minimal cognitive load.
+* **"Refactoring" & Data Integrity:** Continuously improve dependency clarity, manage data consistency boundaries, and systematically reduce technical debt.
 
 ## 2. Anti-Hallucination Protocol
-- **Do not invent new architectural patterns**. If a standard pattern fits the problem, use it and explicitly name it in your explanation.
-- Keep the architecture as simple as possible but no simpler (KISS principle).
-- Follow SOLID principles meticulously.
+* Do not invent architectural patterns or custom abstraction layers. Use industry-standard ones and explicitly name them in explanations.
+* Enforce KISS, DRY, and SOLID principles meticulously across all application layers.
 
-## 3. Fullstack-Specific Architecture
-- **Type-safe boundaries**: Share types between frontend and backend via shared packages or code generation (OpenAPI, tRPC).
-- **BFF pattern**: Backend-for-Frontend where appropriate — tailor API responses to UI needs without over-fetching.
-- **Monorepo discipline**: Clear module boundaries, dependency graphs, and build caching.
-- **SSR/SSG/CSR**: Choose the rendering strategy per-page based on data freshness and interactivity needs.
+## 3. Architecture & Boundary Encapsulation
+* **Modular Boundaries:** Design module/package boundaries so they are highly decoupled and ready to be extracted into independent packages, libs, or microservices.
+* **Developer Documentation:** Strictly follow the project architecture provided by the developer in the project documentation.
+* **Strict Encapsulation:** Expose minimal public APIs/contracts, strictly hiding module internals. Avoid cross-module leaks or circular dependencies.
+* **Composition:** Prefer composition over inheritance in object and component design.
 
-## 4. Defensive Programming & Safety
-- **Strict Validation**: Assume all incoming external data (Payloads, Queries, Params) is malicious or malformed. Validate on both client and server.
-- **Resilience & Fallbacks**: External services fail. Always implement timeouts, and where applicable, use Retry or Circuit Breaker patterns.
-- **Global Exception Handling**: Never leak stack traces to the client. Use global error boundaries on both frontend and backend.
-- **Security Guardrails**: Prevent SQL/NoSQL injections. Never log sensitive data. Apply CSP, CORS, and security headers.
+## 4. Defensive Programming & Security
+* **Zero Trust Input:** Assume all external data (HTTP payloads, API responses, user inputs, configurations) is malformed, missing, or malicious.
+* **Fail-Safe Robustness:** Prevent runtime crashes. Always use optional chaining (`?.`), nullish coalescing (`??`), and strict type guards.
+* **Data Security & Sanitization:** Zero hardcoded secrets, tokens, or API keys. Safely encode or sanitize all outputs to prevent execution vectors (SQLi, XSS) depending on the environment layer.
 
-## 5. Performance First
-- **Bundle discipline**: Code split at route level. Lazy load everything that isn't above the fold.
-- **Database Optimization**: Assume tables have millions of rows: utilize indexes, and never return unpaginated lists.
-- **Caching**: Implement CDN caching for static assets, Redis for session/query cache, and HTTP cache headers.
+## 5. Performance & Resource Management
+* **Optimization by Default:** Write implicitly high-performant code without waiting to be asked.
+* **Resource Optimization:** Eliminate resource and memory leaks. Always unsubscribe from long-lived streams, clear event listeners, and release database/network connection pools immediately after execution.
+* **Deferred & Chunked Operations:** Apply lazy-loading, code-splitting, or chunked stream processing for heavy, non-critical assets or data payloads to optimize time-to-interaction and memory usage.
 
-## 6. Dependencies & Native Capabilities
-- **Maximize Native APIs**: Prioritize native browser APIs and Node.js built-ins before reaching for third-party tools.
-- **Strict Dependency Control**: You are STRICTLY FORBIDDEN from installing new third-party libraries without explicit user consent. Propose, justify, and wait for approval.
+## 6. Dependencies & Native First
+* **Maximize Platform Built-ins:** Always prioritize the platform's/framework's core APIs, official standard libraries, and native CDKs/SDKs before reaching for third-party tools.
+* **Strict Dependency Guardrail:** Installing or introducing new third-party packages or NPM libraries is STRICTLY FORBIDDEN without explicit user consent. Propose, justify, and wait for approval.
 
-## 7. Directory Structure (Domain-Driven)
-Group code by business capability (e.g., `modules/users`, `modules/orders`) rather than by technical roles. Shared code goes into `shared/` or `common/`.
+## 7. Directory Structure
+* **Modular Migration:** Apply the defined **Target Structure** to all new features and modules. **Legacy Structure** applies only to existing untouched codebase areas.
+
+## 8. Code Style & Low Cognitive Load
+* **3-Second Architect Scan:** Write transparent, explicit data flows. A human architect must instantly read and understand dependencies and logic flows at a glance. Avoid "clever" syntax shortcuts or cryptic abstractions.
+* **Method Design (Strict SRP):** One method/function = one precise task. Keep functions short (ideally <20 lines). Split immediately if it handles multiple concerns.
+* **Control Flow:** Eliminate deep nesting (maximum 2 levels). Strictly use early returns (guard clauses) to handle validation and edge cases first.
+* **Semantic Naming:** Use intention-revealing, self-documenting names. Avoid generic terms (`data`, `info`, `temp`, `obj`) and cryptic abbreviations.
+* **No Magic Values:** Extract all raw strings, numbers, configurations, and magic constants into named constants, configurations, or enums.
+
+## 9. Documentation & High-Context Comments
+* **Explain "Why", Not "What":** Do not comment on *what* the code does (the code itself must be self-explanatory). Comment exclusively on *why* it is written this way (architectural decisions, constraints, business logic quirks).
+* **Rich Context Documentation:** Provide clean JSDoc/TSDoc/Docstrings for all public classes, methods, and modules. Explicitly document inputs, outputs, non-obvious side effects, and critical dependencies.
+
+## 10. Professional Etiquette & Hygiene
+* **Zero Dead Code:** Instantly remove unused imports, dead variables, and old commented-out code blocks.
+* **Atomic Modifications:** Focus strictly on the assigned task. Do not mix unrelated refactoring with the current implementation. Fix local linter warnings silently within your scope.
