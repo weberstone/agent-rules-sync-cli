@@ -97,17 +97,29 @@ function buildSkillsTable(ctx: GeneratorContext): string | null {
     .map((s) => `| ${s.name} | \`@.agents/skills/${s.path.split('/').pop()}\` | ${s.description} |`)
     .join('\n');
 
-  return wrapSkills(
-    `## 🛠️ Skills\n\n` +
-      `Load skills on demand — open a skill only when its functionality is needed for the current task. Do not read all skills at startup.\n\n` +
-      `${header}\n${body}`,
-  );
+  return wrapSkills(`## 🛠️ Skills\n\n` + SKILLS_INSTRUCTIONS + `${header}\n${body}`);
 }
 
-/** Shared footer for all generated agent files. */
-function footer(): string {
-  return '\n---\n*This file is managed by `agent-context-sync-cli`. Do not modify manually.*\n';
+// ---- Shared string constants ----
+
+const DIRECTIVE =
+  'At initialization, read every file below and load into context. Follow these rules for every task.\n';
+const RULES_LOCATION =
+  'All rules are located in `.agents/rules/`. Load them in priority order:\n\n';
+const H1_PROJECT = '# Project AI Rules\n\n';
+const TABLE_HEADER = '| Priority | File | Description |\n| :--- | :--- | :--- |';
+const TABLE_HEADER_CLAUDE = '| Priority | File Path | Description |\n| :--- | :--- | :--- |';
+const SKILLS_INSTRUCTIONS =
+  'Load skills on demand — open a skill only when its functionality is needed for the current task. Do not read all skills at startup.\n\n';
+const FOOTER =
+  '\n---\n*This file is managed by `agent-context-sync-cli`. Do not modify manually.*\n';
+
+/** Format a priority row as a numbered line (used by Cursor, Windsurf, Continue). */
+function numberedLine(r: PriorityRow): string {
+  return `${r.priority}. \`.agents/rules/${r.file}\` — ${r.description}`;
 }
+
+// ---- Generator functions ----
 
 // ---- Claude Code: CLAUDE.md ----
 // Format: Plain Markdown with inline priority table.
@@ -116,13 +128,11 @@ function footer(): string {
 function generateClaudeMd(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
 
-  const header = '| Priority | File Path | Description |\n' + '| :--- | :--- | :--- |';
-
   const body = rows
     .map((r) => `| ${r.priority} | \`@.agents/rules/${r.file}\` | ${r.description} |`)
     .join('\n');
 
-  const table = `${header}\n${body}`;
+  const table = `${TABLE_HEADER_CLAUDE}\n${body}`;
 
   const content =
     `# CLAUDE.md\n\n` +
@@ -132,7 +142,7 @@ function generateClaudeMd(ctx: GeneratorContext): AgentFile[] {
     `## 🔗 Rule Manifest\n\n` +
     `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
-    footer();
+    FOOTER;
 
   return [{ filename: 'CLAUDE.md', content }];
 }
@@ -143,22 +153,19 @@ function generateClaudeMd(ctx: GeneratorContext): AgentFile[] {
 
 function generateCursorRules(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
-
-  const lines = rows.map(
-    (r) => `${r.priority.split(' ')[0]}. \`.agents/rules/${r.file}\` — ${r.description}`,
-  );
+  const lines = rows.map(numberedLine);
 
   const content =
     `---\n` +
     `description: "Project AI agent rules and conventions — always loaded into every session"\n` +
     `alwaysApply: true\n` +
     `---\n\n` +
-    `# Project AI Rules\n\n` +
-    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
-    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    H1_PROJECT +
+    DIRECTIVE +
+    RULES_LOCATION +
     `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
-    footer();
+    FOOTER;
 
   return [{ filename: '.cursor/rules/00-agent-rules.mdc', content }];
 }
@@ -174,11 +181,11 @@ function generateGeminiMd(ctx: GeneratorContext): AgentFile[] {
 
   const content =
     `# GEMINI.md\n\n` +
-    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
-    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    DIRECTIVE +
+    RULES_LOCATION +
     `${imports}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
-    footer();
+    FOOTER;
 
   return [{ filename: 'GEMINI.md', content }];
 }
@@ -190,21 +197,19 @@ function generateGeminiMd(ctx: GeneratorContext): AgentFile[] {
 function generateAgentsMd(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
 
-  const header = '| Priority | File | Description |\n' + '| :--- | :--- | :--- |';
-
   const body = rows
     .map((r) => `| ${r.priority} | \`.agents/rules/${r.file}\` | ${r.description} |`)
     .join('\n');
 
-  const table = `${header}\n${body}`;
+  const table = `${TABLE_HEADER}\n${body}`;
 
   const content =
     `# AGENTS.md\n\n` +
-    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
-    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    DIRECTIVE +
+    RULES_LOCATION +
     `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
-    footer();
+    FOOTER;
 
   return [{ filename: 'AGENTS.md', content }];
 }
@@ -216,21 +221,19 @@ function generateAgentsMd(ctx: GeneratorContext): AgentFile[] {
 function generateCopilotInstructions(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
 
-  const header = '| Priority | File | Description |\n' + '| :--- | :--- | :--- |';
-
   const body = rows
     .map((r) => `| ${r.priority} | \`.agents/rules/${r.file}\` | ${r.description} |`)
     .join('\n');
 
-  const table = `${header}\n${body}`;
+  const table = `${TABLE_HEADER}\n${body}`;
 
   const content =
-    `# Project AI Rules\n\n` +
-    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
-    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    H1_PROJECT +
+    DIRECTIVE +
+    RULES_LOCATION +
     `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
-    footer();
+    FOOTER;
 
   return [{ filename: '.github/copilot-instructions.md', content }];
 }
@@ -241,22 +244,19 @@ function generateCopilotInstructions(ctx: GeneratorContext): AgentFile[] {
 
 function generateWindsurfRules(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
-
-  const lines = rows.map(
-    (r) => `${r.priority.split(' ')[0]}. \`.agents/rules/${r.file}\` — ${r.description}`,
-  );
+  const lines = rows.map(numberedLine);
 
   const content =
     `---\n` +
     `trigger: always_on\n` +
     `description: "Project AI agent rules and conventions — always loaded into every session"\n` +
     `---\n\n` +
-    `# Project AI Rules\n\n` +
-    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
-    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    H1_PROJECT +
+    DIRECTIVE +
+    RULES_LOCATION +
     `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
-    footer();
+    FOOTER;
 
   return [{ filename: '.devin/rules/00-agent-rules.md', content }];
 }
@@ -267,21 +267,18 @@ function generateWindsurfRules(ctx: GeneratorContext): AgentFile[] {
 
 function generateContinueRules(ctx: GeneratorContext): AgentFile[] {
   const rows = buildRows(ctx);
-
-  const lines = rows.map(
-    (r) => `${r.priority.split(' ')[0]}. \`.agents/rules/${r.file}\` — ${r.description}`,
-  );
+  const lines = rows.map(numberedLine);
 
   const content =
     `---\n` +
     `# Always apply these rules to every session\n` +
     `---\n\n` +
-    `# Project AI Rules\n\n` +
-    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
-    `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
+    H1_PROJECT +
+    DIRECTIVE +
+    RULES_LOCATION +
     `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
-    footer();
+    FOOTER;
 
   return [{ filename: '.continue/rules/00-agent-rules.md', content }];
 }
