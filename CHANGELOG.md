@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0] — 2026-06-17
+
+### Changed
+- Agent manifest directives: enforce reading + loading rules at initialization,
+  follow them for every task (all 7 generators)
+
+
 ## [0.3.2] — 2026-06-17
 
 ### Changed
@@ -15,9 +22,7 @@
 - Removed dead `nameConflict` flag from `ParsedSkill` type and simplified
   `SkillsDiscoveryService.addSkill()`.
 
-
-
-
+  
 ## [0.3.1] — 2026-06-16
 
 ### Changed

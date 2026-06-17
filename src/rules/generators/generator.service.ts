@@ -127,7 +127,7 @@ function generateClaudeMd(ctx: GeneratorContext): AgentFile[] {
   const content =
     `# CLAUDE.md\n\n` +
     `## 🧠 Core Directives\n` +
-    `1. **Read All Rules**: Before any task, you must open and read every file referenced in the Rule Manifest below. Do not skip any — each file contains instructions that override default behavior.\n` +
+    `1. **Read All Rules**: At initialization, open and read every file referenced in the Rule Manifest below and load into context. Do not skip any — each file contains instructions that override default behavior.\n` +
     `2. **Follow Rules**: When executing tasks, follow the rules defined in these files. If a local rule conflicts with general knowledge, the local rule takes precedence.\n\n` +
     `## 🔗 Rule Manifest\n\n` +
     `${table}\n` +
@@ -154,7 +154,7 @@ function generateCursorRules(ctx: GeneratorContext): AgentFile[] {
     `alwaysApply: true\n` +
     `---\n\n` +
     `# Project AI Rules\n\n` +
-    `Before any task, open and read every file referenced below — do not skip any.\n` +
+    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
@@ -174,7 +174,7 @@ function generateGeminiMd(ctx: GeneratorContext): AgentFile[] {
 
   const content =
     `# GEMINI.md\n\n` +
-    `Before any task, open and read every file referenced below — do not skip any.\n` +
+    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${imports}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
@@ -200,7 +200,7 @@ function generateAgentsMd(ctx: GeneratorContext): AgentFile[] {
 
   const content =
     `# AGENTS.md\n\n` +
-    `Before any task, open and read every file listed below — do not skip any.\n` +
+    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
@@ -226,7 +226,7 @@ function generateCopilotInstructions(ctx: GeneratorContext): AgentFile[] {
 
   const content =
     `# Project AI Rules\n\n` +
-    `Before any task, open and read every file listed below — do not skip any.\n` +
+    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${table}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
@@ -252,7 +252,7 @@ function generateWindsurfRules(ctx: GeneratorContext): AgentFile[] {
     `description: "Project AI agent rules and conventions — always loaded into every session"\n` +
     `---\n\n` +
     `# Project AI Rules\n\n` +
-    `Before any task, open and read every file referenced below — do not skip any.\n` +
+    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
@@ -277,7 +277,7 @@ function generateContinueRules(ctx: GeneratorContext): AgentFile[] {
     `# Always apply these rules to every session\n` +
     `---\n\n` +
     `# Project AI Rules\n\n` +
-    `Before any task, open and read every file referenced below — do not skip any.\n` +
+    `At initialization, read every file below and load into context. Follow these rules for every task.\n` +
     `All rules are located in \`.agents/rules/\`. Load them in priority order:\n\n` +
     `${lines.join('\n')}\n` +
     (buildSkillsTable(ctx) ? `\n${buildSkillsTable(ctx)}\n` : '') +
