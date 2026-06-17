@@ -21,6 +21,9 @@
  * are reserved for future use and are preserved as-is.
  */
 
+export const RULES_DIR = '.agents/rules';
+export const SKILLS_DIR = '.agents/skills';
+
 const START_MARKER = '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:START -->';
 const END_MARKER = '<!-- AGENT-CONTEXT-SYNC-CLI:RULES:END -->';
 

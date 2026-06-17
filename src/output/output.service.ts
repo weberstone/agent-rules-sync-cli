@@ -23,9 +23,8 @@ import {
   updateSkills,
   SKILLS_START,
   SKILLS_END,
+  RULES_DIR,
 } from './content-wrapper.js';
-
-const RULES_DIR = '.agents/rules';
 
 /**
  * Split generator output into rules and skills portions.

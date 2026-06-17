@@ -33,6 +33,7 @@ import { F, RULE_FILE_SET } from '../rules/compiler/compiler.types.js';
 import { generatorRegistry } from '../rules/generators/generator.service.js';
 import type { GeneratorContext } from '../rules/generators/generator.types.js';
 import { OutputService } from '../output/output.service.js';
+import { RULES_DIR, SKILLS_DIR } from '../output/content-wrapper.js';
 
 import { SkillsDiscoveryService } from '../skills/discovery/skills-discovery.service.js';
 import { SkillsPromptService } from '../skills/prompts/skills-prompts.service.js';
@@ -96,7 +97,7 @@ export class OrchestratorService {
       s.start('Compiling rules from templates...');
       ruleFiles = await this.compiler.compile(rulesAnswers, this.projectName);
       await this.output.writeRulesDir(ruleFiles);
-      s.stop('Rules compiled and saved to .agents/rules/');
+      s.stop(`Rules compiled and saved to ${RULES_DIR}/`);
 
       // Merge rules answers into config answers
       Object.assign(configAnswers, rulesAnswers);
@@ -127,7 +128,7 @@ export class OrchestratorService {
         s.start('Copying skills...');
         const names = await this.skillsCompiler.compile(selected);
         copiedSkills = selected.filter((s) => names.includes(s.name));
-        s.stop('Skills copied to .agents/skills/');
+        s.stop(`Skills copied to ${SKILLS_DIR}/`);
       }
 
       configAnswers.syncSkills = true;
@@ -175,8 +176,8 @@ export class OrchestratorService {
       this.showStarRequest();
     } else {
       logPlain('Rules synchronized successfully.');
-      if (ruleFiles.length > 0) logPlain(`.agents/rules/: ${ruleFiles.length} files`);
-      if (copiedSkills.length > 0) logPlain(`.agents/skills/: ${copiedSkills.length} skills`);
+      if (ruleFiles.length > 0) logPlain(`${RULES_DIR}/: ${ruleFiles.length} files`);
+      if (copiedSkills.length > 0) logPlain(`${SKILLS_DIR}/: ${copiedSkills.length} skills`);
       if (writtenFiles.length > 0) logPlain(`Agent configs: ${writtenFiles.join(', ')}`);
     }
   }
@@ -566,8 +567,8 @@ export class OrchestratorService {
     ];
 
     const parts: string[] = [];
-    if (ruleFiles.length > 0) parts.push(pc.dim('📁 .agents/rules/ created'));
-    if (copiedSkills.length > 0) parts.push(pc.dim('🛠️  .agents/skills/ created'));
+    if (ruleFiles.length > 0) parts.push(pc.dim(`📁 ${RULES_DIR}/ created`));
+    if (copiedSkills.length > 0) parts.push(pc.dim(`🛠️  ${SKILLS_DIR}/ created`));
     parts.push(pc.dim('⚙️  Agent config files generated'));
     parts.push(pc.dim('💾 Configuration saved'));
 
@@ -650,7 +651,7 @@ function buildGeneratorContext(ruleFiles: CompiledFile[], skills: ParsedSkill[])
     hasPackageRules: filenames.has(F.PACKAGE_RULES),
     skills: skills.map((s) => ({
       name: s.name,
-      path: `.agents/skills/${s.name}${s.type === 'folder' ? '/SKILL.md' : '.md'}`,
+      path: `${SKILLS_DIR}/${s.name}${s.type === 'folder' ? '/SKILL.md' : '.md'}`,
       description: s.description,
     })),
   };

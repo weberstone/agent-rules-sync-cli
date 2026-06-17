@@ -13,7 +13,7 @@
  * Agent specifications are documented in `docs/agents/<agent>.md`.
  */
 
-import { wrapSkills } from '../../output/content-wrapper.js';
+import { wrapSkills, RULES_DIR } from '../../output/content-wrapper.js';
 import type { AgentFile, AgentGenerator, GeneratorContext } from './generator.types.js';
 import { AGENT_META } from './generator.types.js';
 import { F } from '../compiler/compiler.types.js';
@@ -38,16 +38,19 @@ interface PriorityRow {
 function buildRows(ctx: GeneratorContext): PriorityRow[] {
   const rows: PriorityRow[] = [];
 
-  if (ctx.hasUserprompt) rows.push({ priority: '1', file: F.USERPROMPT, description: DESC_USERPROMPT });
+  if (ctx.hasUserprompt)
+    rows.push({ priority: '1', file: F.USERPROMPT, description: DESC_USERPROMPT });
   if (ctx.hasWorkflow) rows.push({ priority: '2', file: F.WORKFLOW, description: DESC_WORKFLOW });
   if (ctx.hasSpec) rows.push({ priority: '3', file: F.SPEC, description: DESC_SPEC });
-  if (ctx.hasArchitecture) rows.push({ priority: '4', file: F.ARCHITECTURE, description: DESC_ARCHITECTURE });
+  if (ctx.hasArchitecture)
+    rows.push({ priority: '4', file: F.ARCHITECTURE, description: DESC_ARCHITECTURE });
 
   for (const fw of ctx.frameworkFiles) {
     rows.push({ priority: '5', file: fw, description: DESC_FRAMEWORK });
   }
 
-  if (ctx.hasPackageRules) rows.push({ priority: '6', file: F.PACKAGE_RULES, description: DESC_PACKAGE_RULES });
+  if (ctx.hasPackageRules)
+    rows.push({ priority: '6', file: F.PACKAGE_RULES, description: DESC_PACKAGE_RULES });
 
   return rows;
 }
@@ -70,13 +73,11 @@ function buildSkillsTable(ctx: GeneratorContext): string | null {
 
 // ---- Shared string constants ----
 
-const R = '.agents/rules';
-
 const D_READ =
   'At initialization, open and read every file referenced in the Rule Manifest below and load into context. Do not skip any — each file contains instructions that override default behavior.';
 const D_FOLLOW =
   'When executing tasks, follow the rules defined in these files. If a local rule conflicts with general knowledge, the local rule takes precedence.';
-const RULES_LOCATION = `All rules are located in \`${R}/\`. Load them in priority order:\n\n`;
+const RULES_LOCATION = `All rules are located in \`${RULES_DIR}/\`. Load them in priority order:\n\n`;
 const TABLE_HEADER = '| Priority | File | Description |\n| :--- | :--- | :--- |';
 const TABLE_HEADER_CLAUDE = '| Priority | File Path | Description |\n| :--- | :--- | :--- |';
 const SKILLS_INSTRUCTIONS =
@@ -93,10 +94,10 @@ const FRONTMATTER_DESC =
 type RuleFormat = 'table' | 'table-claude' | 'numbered' | 'imports';
 
 const TABLE_ROW: Record<RuleFormat, (r: PriorityRow) => string> = {
-  table: (r) => `| ${r.priority} | \`${R}/${r.file}\` | ${r.description} |`,
-  'table-claude': (r) => `| ${r.priority} | \`@${R}/${r.file}\` | ${r.description} |`,
-  numbered: (r) => `${r.priority}. \`${R}/${r.file}\` — ${r.description}`,
-  imports: (r) => `@${R}/${r.file} — ${r.description}`,
+  table: (r) => `| ${r.priority} | \`${RULES_DIR}/${r.file}\` | ${r.description} |`,
+  'table-claude': (r) => `| ${r.priority} | \`@${RULES_DIR}/${r.file}\` | ${r.description} |`,
+  numbered: (r) => `${r.priority}. \`${RULES_DIR}/${r.file}\` — ${r.description}`,
+  imports: (r) => `@${RULES_DIR}/${r.file} — ${r.description}`,
 };
 
 function formatRules(rows: PriorityRow[], fmt: RuleFormat): string {
@@ -137,43 +138,78 @@ function assemble(ctx: GeneratorContext, opts: ContentOpts): string {
 const H = '# Project AI Rules\n\n';
 
 function generateClaudeMd(ctx: GeneratorContext): AgentFile[] {
-  return [{ filename: 'CLAUDE.md', content: assemble(ctx, { heading: '# CLAUDE.md\n\n', ruleFormat: 'table-claude' }) }];
+  return [
+    {
+      filename: 'CLAUDE.md',
+      content: assemble(ctx, { heading: '# CLAUDE.md\n\n', ruleFormat: 'table-claude' }),
+    },
+  ];
 }
 
 function generateCursorRules(ctx: GeneratorContext): AgentFile[] {
-  return [{ filename: '.cursor/rules/00-agent-rules.mdc', content: assemble(ctx, {
-    frontmatter: `---\ndescription: "${FRONTMATTER_DESC}"\nalwaysApply: true\n---\n\n`,
-    heading: H,
-    ruleFormat: 'numbered',
-  }) }];
+  return [
+    {
+      filename: '.cursor/rules/00-agent-rules.mdc',
+      content: assemble(ctx, {
+        frontmatter: `---\ndescription: "${FRONTMATTER_DESC}"\nalwaysApply: true\n---\n\n`,
+        heading: H,
+        ruleFormat: 'numbered',
+      }),
+    },
+  ];
 }
 
 function generateGeminiMd(ctx: GeneratorContext): AgentFile[] {
-  return [{ filename: 'GEMINI.md', content: assemble(ctx, { heading: '# GEMINI.md\n\n', ruleFormat: 'imports' }) }];
+  return [
+    {
+      filename: 'GEMINI.md',
+      content: assemble(ctx, { heading: '# GEMINI.md\n\n', ruleFormat: 'imports' }),
+    },
+  ];
 }
 
 function generateAgentsMd(ctx: GeneratorContext): AgentFile[] {
-  return [{ filename: 'AGENTS.md', content: assemble(ctx, { heading: '# AGENTS.md\n\n', ruleFormat: 'table' }) }];
+  return [
+    {
+      filename: 'AGENTS.md',
+      content: assemble(ctx, { heading: '# AGENTS.md\n\n', ruleFormat: 'table' }),
+    },
+  ];
 }
 
 function generateCopilotInstructions(ctx: GeneratorContext): AgentFile[] {
-  return [{ filename: '.github/copilot-instructions.md', content: assemble(ctx, { heading: H, ruleFormat: 'table' }) }];
+  return [
+    {
+      filename: '.github/copilot-instructions.md',
+      content: assemble(ctx, { heading: H, ruleFormat: 'table' }),
+    },
+  ];
 }
 
 function generateWindsurfRules(ctx: GeneratorContext): AgentFile[] {
-  return [{ filename: '.devin/rules/00-agent-rules.md', content: assemble(ctx, {
-    frontmatter: `---\ntrigger: always_on\ndescription: "${FRONTMATTER_DESC}"\n---\n\n`,
-    heading: H,
-    ruleFormat: 'numbered',
-  }) }];
+  return [
+    {
+      filename: '.devin/rules/00-agent-rules.md',
+      content: assemble(ctx, {
+        frontmatter: `---\ntrigger: always_on\ndescription: "${FRONTMATTER_DESC}"\n---\n\n`,
+        heading: H,
+        ruleFormat: 'numbered',
+      }),
+    },
+  ];
 }
 
 function generateContinueRules(ctx: GeneratorContext): AgentFile[] {
-  return [{ filename: '.continue/rules/00-agent-rules.md', content: assemble(ctx, {
-    frontmatter: '---\n# Always apply these rules to every session\n---\n\n',
-    heading: H,
-    ruleFormat: 'numbered',
-  }) }];
+  return [
+    {
+      filename: '.continue/rules/00-agent-rules.md',
+      content: assemble(ctx, {
+        frontmatter: '---\n# Always apply these rules to every session\n---\n\n',
+        heading: H,
+        ruleFormat: 'numbered',
+      }),
+    },
+  ];
 }
 
 // ---- Registry ----
