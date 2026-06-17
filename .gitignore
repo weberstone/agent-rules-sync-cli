@@ -10,6 +10,7 @@
 .devin/*
 .cursor/*
 .claude/*
+.github/*
 docs/*
 CLAUDE.md
 AGENTS.md
