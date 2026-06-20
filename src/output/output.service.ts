@@ -101,7 +101,10 @@ export class OutputService {
     try {
       const content = await readTextFile(filePath);
       return hasSyncMarkers(content);
-    } catch {
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(`Cannot read file to check markers "${filePath}": ${(err as Error).message}`);
+      }
       return false;
     }
   }

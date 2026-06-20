@@ -40,35 +40,41 @@ describe('getSourceDir', () => {
 
 describe('getContextDir', () => {
   it('returns a readable directory', async () => {
-    const { getContextDir } = await importPaths();
+    const { getContextDir, initPaths } = await importPaths();
+    await initPaths();
     expect(getContextDir()).toBeTruthy();
   });
 });
 
 describe('getRulesDir', () => {
   it('returns a path ending with /rules', async () => {
-    const { getRulesDir } = await importPaths();
+    const { getRulesDir, initPaths } = await importPaths();
+    await initPaths();
     expect(getRulesDir()).toMatch(/\/rules$/);
   });
 });
 
 describe('getSkillsDir', () => {
   it('returns a path ending with /skills', async () => {
-    const { getSkillsDir } = await importPaths();
+    const { getSkillsDir, initPaths } = await importPaths();
+    await initPaths();
     expect(getSkillsDir()).toMatch(/\/skills$/);
   });
 });
 
 describe('getProjectsDir', () => {
   it('returns a path ending with /projects', async () => {
-    const { getProjectsDir } = await importPaths();
+    const { getProjectsDir, initPaths } = await importPaths();
+    await initPaths();
     expect(getProjectsDir()).toMatch(/\/projects$/);
   });
 });
 
 describe('path consistency', () => {
   it('rulesDir, skillsDir, and projectsDir are under contextDir', async () => {
-    const { getContextDir, getRulesDir, getSkillsDir, getProjectsDir } = await importPaths();
+    const { getContextDir, getRulesDir, getSkillsDir, getProjectsDir, initPaths } =
+      await importPaths();
+    await initPaths();
     const ctx = getContextDir();
     expect(getRulesDir().startsWith(ctx)).toBe(true);
     expect(getSkillsDir().startsWith(ctx)).toBe(true);

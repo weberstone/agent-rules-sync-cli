@@ -19,7 +19,8 @@ import type { Answers } from '../rules/prompts/prompts.types.js';
 import { AVAILABLE_AGENTS } from '../rules/prompts/prompts.types.js';
 import { CompilerService } from '../rules/compiler/compiler.service.js';
 import type { CompiledFile } from '../rules/compiler/compiler.types.js';
-import { F, RULE_FILE_SET } from '../rules/compiler/compiler.types.js';
+import { RULE_FILE_SET, F } from '../rules/compiler/compiler.types.js';
+import { FinalePresenter } from './finale.presenter.js';
 import { generatorRegistry } from '../rules/generators/generator.service.js';
 import type { GeneratorContext } from '../rules/generators/generator.types.js';
 import { OutputService } from '../output/output.service.js';
@@ -29,14 +30,9 @@ import { SkillsDiscoveryService } from '../skills/discovery/skills-discovery.ser
 import { SkillsPromptService } from '../skills/prompts/skills-prompts.service.js';
 import { SkillsCompilerService } from '../skills/compiler/skills-compiler.service.js';
 import type { ParsedSkill } from '../skills/types/skills.types.js';
-import pc from 'picocolors';
+
 import fs from 'node:fs/promises';
 import type { Terminal } from './terminal.interface.js';
-
-// Composed color helpers — return (s: string) => string for use with hr()/padLine()
-const boldMagenta = (s: string) => pc.bold(pc.magenta(s));
-const boldGreen = (s: string) => pc.bold(pc.green(s));
-const boldCyan = (s: string) => pc.bold(pc.cyan(s));
 
 export class OrchestratorService {
   constructor(
@@ -75,7 +71,7 @@ export class OrchestratorService {
       let rulesAnswers: Answers | null;
       if (configAnswers.architecture) {
         // Using existing config — skip questionnaire
-        rulesAnswers = configAnswers as unknown as Answers;
+        rulesAnswers = configAnswers as Answers;
       } else {
         rulesAnswers = await this.promptService.run(this.projectName);
       }
@@ -162,9 +158,11 @@ export class OrchestratorService {
 
     // 8. Grand finale (TTY only — non-TTY gets plain output)
     if (process.stdin.isTTY) {
-      this.showFinale(ruleFiles, writtenFiles, copiedSkills);
-      await this.showGitignoreWarning();
-      this.showStarRequest();
+      const presenter = new FinalePresenter(this.terminal, this.projectName);
+      presenter.showFinale(ruleFiles, writtenFiles, copiedSkills);
+      const inGitignore = await this.output.isInGitignore('ai-context-config.json');
+      presenter.showGitignoreWarning(inGitignore);
+      presenter.showStarRequest();
     } else {
       this.terminal.logPlain('Rules synchronized successfully.');
       if (ruleFiles.length > 0) this.terminal.logPlain(`${RULES_DIR}/: ${ruleFiles.length} files`);
@@ -207,7 +205,9 @@ export class OrchestratorService {
 
   // ---- Config ----
 
-  private async resolveConfig(): Promise<Record<string, unknown> | null> {
+  private async resolveConfig(): Promise<
+    (Partial<Answers> & { syncSkills?: boolean; skills?: string[] }) | null
+  > {
     const existingConfig = await this.configService.read();
 
     if (existingConfig === null) {
@@ -240,7 +240,9 @@ export class OrchestratorService {
     return {};
   }
 
-  private async configToAnswers(config: Config): Promise<Record<string, unknown>> {
+  private async configToAnswers(
+    config: Config,
+  ): Promise<Partial<Answers> & { syncSkills?: boolean; skills?: string[] }> {
     const arch = config.architecture;
 
     const hasProjectUserprompt = await this.discovery.hasProjectOverride(
@@ -541,105 +543,7 @@ export class OrchestratorService {
     return choice as 'update' | 'overwrite' | 'skip';
   }
 
-  // ---- Finale ----
-
-  private hr(color: (s: string) => string): string {
-    return color('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  }
-
-  private padLine(raw: string, color: (s: string) => string): string {
-    return '  ' + color(raw);
-  }
-
-  private showFinale(
-    ruleFiles: CompiledFile[],
-    writtenFiles: string[],
-    copiedSkills: ParsedSkill[],
-  ): void {
-    const art = [
-      pc.bold(pc.magenta('    ▄████▄     ')),
-      pc.bold(pc.magenta('    ▄████████▄   ')),
-      pc.bold(pc.magenta('   ███◣▛██▜◢███  ')),
-      pc.bold(pc.magenta('   ███▒████▒███  ')),
-      pc.bold(pc.magenta('    ▀████████▀   ')),
-      pc.bold(pc.magenta('  ▄██▒▒██▒▒██▄   ')),
-      pc.bold(pc.magenta(' ██▀╲╱╲╱╲╱╲╱▀██   ')),
-      pc.bold(pc.magenta(' ▀  ╲  ╲╱  ╱  ▀   ')),
-    ];
-
-    const parts: string[] = [];
-    if (ruleFiles.length > 0) parts.push(pc.dim(`📁 ${RULES_DIR}/ created`));
-    if (copiedSkills.length > 0) parts.push(pc.dim(`🛠️  ${SKILLS_DIR}/ created`));
-    parts.push(pc.dim('⚙️  Agent config files generated'));
-    parts.push(pc.dim('💾 Configuration saved'));
-
-    const info = [
-      ' ' + pc.bold(pc.green('✨ Rules synchronized!')),
-      '',
-      ...parts.map((p) => ' ' + p),
-      '',
-      ' ' + pc.dim('📂 ' + this.projectName),
-      '',
-    ];
-
-    this.terminal.outro(art.map((line, i) => line + (info[i] ?? '')).join('\n'));
-
-    // Files box
-    const files: string[] = [];
-    if (ruleFiles.length > 0) {
-      files.push(pc.bold(pc.green('Rules:')));
-      files.push(...ruleFiles.map((f) => '  ' + f.filename));
-    }
-    if (copiedSkills.length > 0) {
-      if (files.length > 0) files.push('');
-      files.push(pc.bold(pc.green('Skills:')));
-      files.push(...copiedSkills.map((s) => '  ' + s.name));
-    }
-    if (writtenFiles.length > 0) {
-      files.push('');
-      files.push(pc.bold(pc.green('Agent configs:')));
-      files.push(...writtenFiles.map((f) => '  ' + f));
-    }
-
-    const lines: string[] = [
-      this.hr(boldGreen),
-      this.padLine('  Created files:', boldGreen),
-      '',
-      ...files.map((f) => this.padLine('      ' + f, pc.cyan)),
-    ];
-
-    this.terminal.outro(lines.join('\n'));
-  }
-
-  private async showGitignoreWarning(): Promise<void> {
-    const inGitignore = await this.output.isInGitignore('ai-context-config.json');
-    if (!inGitignore) {
-      this.terminal.logPlain('');
-      this.terminal.logPlain(
-        this.padLine('ℹ️  "ai-context-config.json" was created to store your preferences.', pc.dim),
-      );
-      this.terminal.logPlain(
-        this.padLine("   If you don't want to commit it, add it to your .gitignore file.", pc.dim),
-      );
-    }
-  }
-
-  private showStarRequest(): void {
-    this.terminal.logPlain('');
-    this.terminal.logPlain(this.hr(boldMagenta));
-    this.terminal.logPlain(this.padLine('🌟 LOVE THIS TOOL?', boldMagenta));
-    this.terminal.logPlain('');
-    this.terminal.logPlain(
-      this.padLine('If this tool helps you build better projects,', pc.magenta),
-    );
-    this.terminal.logPlain(this.padLine('please consider giving us a star on GitHub!', pc.magenta));
-    this.terminal.logPlain('');
-    this.terminal.logPlain(
-      this.padLine('👉 https://github.com/weberstone/agent-context-sync-cli', boldCyan),
-    );
-    this.terminal.logPlain(this.hr(boldMagenta));
-    this.terminal.logPlain('');
-  }
+  // ---- Finale removed (extracted to FinalePresenter) ----
 }
 
 // ---- Helpers ----

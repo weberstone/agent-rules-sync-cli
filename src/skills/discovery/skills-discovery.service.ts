@@ -53,7 +53,10 @@ export class SkillsDiscoveryService {
       let entryStat;
       try {
         entryStat = await fs.stat(entryPath);
-      } catch {
+      } catch (err) {
+        if (!isEnoent(err)) {
+          logWarning(`Cannot stat skill entry "${entryPath}": ${(err as Error).message}`);
+        }
         continue;
       }
 
@@ -85,7 +88,10 @@ export class SkillsDiscoveryService {
     let content: string;
     try {
       content = await fs.readFile(filePath, 'utf-8');
-    } catch {
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(`Cannot read skill file "${filePath}": ${(err as Error).message}`);
+      }
       return null;
     }
 

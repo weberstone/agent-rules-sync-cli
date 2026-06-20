@@ -21,6 +21,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { logWarning } from './log.js';
+import { isEnoent } from './fs.js';
 
 const ENV_KEY = 'AGENT_CONTEXT_DIR';
 
@@ -87,7 +88,10 @@ async function readEnvFile(filePath: string): Promise<string | null> {
     const content = await fs.readFile(filePath, 'utf-8');
     const parsed = parseEnvFile(content);
     return parsed[ENV_KEY] ?? null;
-  } catch {
+  } catch (err) {
+    if (!isEnoent(err)) {
+      logWarning(`Cannot read .env file "${filePath}": ${(err as Error).message}`);
+    }
     return null;
   }
 }
@@ -103,7 +107,13 @@ async function findPackageRoot(startDir: string): Promise<string | null> {
     try {
       await fs.stat(path.join(dir, 'context', 'rules'));
       return dir;
-    } catch {}
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(
+          `Error accessing "${path.join(dir, 'context', 'rules')}": ${(err as Error).message}`,
+        );
+      }
+    }
     dir = path.dirname(dir);
   }
   return null;
@@ -174,7 +184,10 @@ async function resolveContextRoot(sourceDir: string): Promise<string> {
     try {
       const stat = await fs.stat(rulesCandidate);
       if (stat.isDirectory()) return resolved;
-    } catch {
+    } catch (err) {
+      if (!isEnoent(err)) {
+        logWarning(`Error accessing "${rulesCandidate}": ${(err as Error).message}`);
+      }
       // Directory doesn't exist or is inaccessible — fall through to default
     }
     // Graceful fallback: warn and use default discovery
@@ -190,10 +203,21 @@ async function resolveContextRoot(sourceDir: string): Promise<string> {
 // ---- module-level resolution (top-level await) ----
 
 const sourceDir = path.dirname(fileURLToPath(import.meta.url));
-const contextDir = await resolveContextRoot(sourceDir);
-const rulesDir = path.join(contextDir, 'rules');
-const skillsDir = path.join(contextDir, 'skills');
-const projectsDir = path.join(contextDir, 'projects');
+let contextDir: string;
+let rulesDir: string;
+let skillsDir: string;
+let projectsDir: string;
+
+/**
+ * Initialize all paths. Must be called before accessing path getters.
+ */
+export async function initPaths(): Promise<void> {
+  if (contextDir) return;
+  contextDir = await resolveContextRoot(sourceDir);
+  rulesDir = path.join(contextDir, 'rules');
+  skillsDir = path.join(contextDir, 'skills');
+  projectsDir = path.join(contextDir, 'projects');
+}
 
 // ---- public getters ----
 

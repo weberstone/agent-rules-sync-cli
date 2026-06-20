@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.4] — 2026-06-20
+
+### Changed
+- Refactored `PromptsService` to apply DRY principles, consolidating prompt logic.
+- Extracted presentation logic from `OrchestratorService` into a dedicated `FinalePresenter` for better SRP.
+- Removed top-level await from `paths.ts` and introduced explicit initialization in `index.ts`.
+
+### Fixed
+- Fixed TypeScript safety in `configToAnswers` by returning a properly typed `Promise<Answers>`.
+- Added missing error checks in empty `catch` blocks across the application to prevent silent failures on non-ENOENT system errors.
+
 ## [0.3.3] — 2026-06-18
 
 ### Changed
