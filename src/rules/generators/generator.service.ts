@@ -234,6 +234,10 @@ function generateOpenCodeJson(ctx: GeneratorContext): AgentFile[] {
 
   return [
     {
+      filename: 'AGENTS.md',
+      content: assemble(ctx, { heading: '# AGENTS.md\n\n', ruleFormat: 'table' }),
+    },
+    {
       filename: 'opencode.json',
       content: JSON.stringify(config, null, 2) + '\n',
     },

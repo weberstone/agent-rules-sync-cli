@@ -244,14 +244,22 @@ describe('generateContinueRules', () => {
 // ---- OpenCode ----
 
 describe('generateOpenCodeJson', () => {
-  it('returns single opencode.json file', () => {
+  it('returns opencode.json and AGENTS.md files', () => {
     const files = generateOpenCodeJson(fullContext);
-    expect(files).toHaveLength(1);
-    expect(files[0].filename).toBe('opencode.json');
+    expect(files).toHaveLength(2);
+    expect(files[0].filename).toBe('AGENTS.md');
+    expect(files[1].filename).toBe('opencode.json');
+  });
+
+  it('includes AGENTS.md with priority table', () => {
+    const { content } = generateOpenCodeJson(fullContext)[0];
+    expect(content).toContain('# AGENTS.md');
+    expect(content).toContain('| 1 |');
+    expect(content).toContain('.agents/rules/userprompt.md');
   });
 
   it('produces valid JSON with $schema and all available rule files', () => {
-    const { content } = generateOpenCodeJson(fullContext)[0];
+    const { content } = generateOpenCodeJson(fullContext)[1];
     const parsed = JSON.parse(content);
     expect(parsed.$schema).toBe('https://opencode.ai/config.json');
     expect(parsed.instructions).toEqual([
@@ -265,7 +273,7 @@ describe('generateOpenCodeJson', () => {
   });
 
   it('includes only available files from context', () => {
-    const { content } = generateOpenCodeJson(minimalContext)[0];
+    const { content } = generateOpenCodeJson(minimalContext)[1];
     const parsed = JSON.parse(content);
     expect(parsed.instructions).toEqual([
       '.agents/rules/workflow.md',

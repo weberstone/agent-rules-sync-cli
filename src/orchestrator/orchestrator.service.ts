@@ -140,12 +140,16 @@ export class OrchestratorService {
     // 6. Generate & write agent files
     const ctx = buildGeneratorContext(ruleFiles, copiedSkills);
     const writtenFiles: string[] = [];
+    const seenFiles = new Set<string>();
     for (const agentKey of agents) {
       const generator = generatorRegistry.get(agentKey);
       if (!generator) continue;
 
       const agentFiles = generator(ctx);
       for (const file of agentFiles) {
+        if (seenFiles.has(file.filename)) continue;
+        seenFiles.add(file.filename);
+
         const mode = await this.resolveWriteMode(file.filename);
         if (mode === 'skip') continue;
         await this.output.writeAgentFile(file.filename, file.content, mode);
