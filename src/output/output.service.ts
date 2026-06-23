@@ -12,6 +12,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 import { writeTextFile, ensureDir, readTextFile, isEnoent } from '../utils/fs.js';
 import { logWarning } from '../utils/log.js';
 import type { CompiledFile } from '../rules/compiler/compiler.types.js';
@@ -60,13 +61,36 @@ export class OutputService {
 
   /**
    * Write rule files to `.agents/rules/`.
-   * This is always a full overwrite — it's the sync mechanism.
+   * Cleans up stale files from previous syncs before writing the new set.
    */
   async writeRulesDir(files: CompiledFile[]): Promise<void> {
     await ensureDir(this.rulesDir);
+
+    const incomingNames = new Set(files.map((f) => f.filename));
+    await this.pruneStaleFiles(this.rulesDir, incomingNames);
+
     for (const file of files) {
       const filePath = path.join(this.rulesDir, file.filename);
       await writeTextFile(filePath, file.content);
+    }
+  }
+
+  /**
+   * Remove files from a directory whose names are not in the `keep` set.
+   * Skips directories — only removes regular files.
+   */
+  private async pruneStaleFiles(dir: string, keep: ReadonlySet<string>): Promise<void> {
+    let entries: Dirent[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch (err) {
+      if (isEnoent(err)) return;
+      throw err;
+    }
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (keep.has(entry.name)) continue;
+      await fs.unlink(path.join(dir, entry.name));
     }
   }
 

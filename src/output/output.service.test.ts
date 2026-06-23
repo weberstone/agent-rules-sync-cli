@@ -52,6 +52,37 @@ describe('writeRulesDir', () => {
     const stat = await fs.stat(path.join(tmpDir, '.agents', 'rules'));
     expect(stat.isDirectory()).toBe(true);
   });
+
+  it('removes stale files not present in the new compiled set', async () => {
+    // Write two files first run
+    await service.writeRulesDir([
+      { filename: 'keep.md', content: '# Keep' },
+      { filename: 'stale.md', content: '# Stale' },
+    ]);
+
+    // Second run: only keep.md — stale.md should be removed
+    await service.writeRulesDir([{ filename: 'keep.md', content: '# Keep v2' }]);
+
+    const keepContent = await fs.readFile(
+      path.join(tmpDir, '.agents', 'rules', 'keep.md'),
+      'utf-8',
+    );
+    expect(keepContent).toBe('# Keep v2');
+
+    await expect(
+      fs.readFile(path.join(tmpDir, '.agents', 'rules', 'stale.md'), 'utf-8'),
+    ).rejects.toThrow();
+  });
+
+  it('does not remove directories inside .agents/rules/', async () => {
+    const skillsDir = path.join(tmpDir, '.agents', 'rules', 'skills');
+    await fs.mkdir(skillsDir, { recursive: true });
+
+    await service.writeRulesDir([{ filename: 'test.md', content: 'data' }]);
+
+    const stat = await fs.stat(skillsDir);
+    expect(stat.isDirectory()).toBe(true);
+  });
 });
 
 describe('fileExists', () => {
