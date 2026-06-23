@@ -24,6 +24,7 @@ export const AGENT_META: readonly AgentMeta[] = [
   { key: 'github-copilot', label: 'GitHub Copilot' },
   { key: 'continue', label: 'Continue' },
   { key: 'windsurf', label: 'Windsurf / Devin' },
+  { key: 'opencode', label: 'OpenCode' },
 ] as const;
 
 /** Agent key union derived from AGENT_META — stays in sync automatically. */

@@ -7,6 +7,7 @@ import {
   generateCopilotInstructions,
   generateContinueRules,
   generateWindsurfRules,
+  generateOpenCodeJson,
   GeneratorRegistry,
   generatorRegistry,
 } from './generator.service.js';
@@ -240,6 +241,40 @@ describe('generateContinueRules', () => {
   });
 });
 
+// ---- OpenCode ----
+
+describe('generateOpenCodeJson', () => {
+  it('returns single opencode.json file', () => {
+    const files = generateOpenCodeJson(fullContext);
+    expect(files).toHaveLength(1);
+    expect(files[0].filename).toBe('opencode.json');
+  });
+
+  it('produces valid JSON with $schema and all available rule files', () => {
+    const { content } = generateOpenCodeJson(fullContext)[0];
+    const parsed = JSON.parse(content);
+    expect(parsed.$schema).toBe('https://opencode.ai/config.json');
+    expect(parsed.instructions).toEqual([
+      '.agents/rules/userprompt.md',
+      '.agents/rules/workflow.md',
+      '.agents/rules/spec.md',
+      '.agents/rules/architecture.md',
+      '.agents/rules/angular-guidelines.md',
+      '.agents/rules/package-rules.md',
+    ]);
+  });
+
+  it('includes only available files from context', () => {
+    const { content } = generateOpenCodeJson(minimalContext)[0];
+    const parsed = JSON.parse(content);
+    expect(parsed.instructions).toEqual([
+      '.agents/rules/workflow.md',
+      '.agents/rules/architecture.md',
+      '.agents/rules/only-node.md',
+    ]);
+  });
+});
+
 // ---- Registry ----
 
 describe('GeneratorRegistry', () => {
@@ -251,6 +286,7 @@ describe('GeneratorRegistry', () => {
     expect(generatorRegistry.get('github-copilot')).toBe(generateCopilotInstructions);
     expect(generatorRegistry.get('continue')).toBe(generateContinueRules);
     expect(generatorRegistry.get('windsurf')).toBe(generateWindsurfRules);
+    expect(generatorRegistry.get('opencode')).toBe(generateOpenCodeJson);
   });
 
   it('returns undefined for unknown key', () => {
