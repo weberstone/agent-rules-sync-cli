@@ -225,6 +225,11 @@ function generateOpenCodeJson(ctx: GeneratorContext): AgentFile[] {
   const config: Record<string, unknown> = {
     $schema: 'https://opencode.ai/config.json',
     instructions: files,
+    formatter: true,
+    permission: {
+      '*': 'ask',
+      read: 'allow',
+    },
   };
 
   return [
