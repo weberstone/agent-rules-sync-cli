@@ -212,6 +212,34 @@ function generateContinueRules(ctx: GeneratorContext): AgentFile[] {
   ];
 }
 
+function generateOpenCodeJson(ctx: GeneratorContext): AgentFile[] {
+  const files: string[] = [];
+
+  if (ctx.hasUserprompt) files.push(`${RULES_DIR}/${F.USERPROMPT}`);
+  if (ctx.hasWorkflow) files.push(`${RULES_DIR}/${F.WORKFLOW}`);
+  if (ctx.hasSpec) files.push(`${RULES_DIR}/${F.SPEC}`);
+  if (ctx.hasArchitecture) files.push(`${RULES_DIR}/${F.ARCHITECTURE}`);
+  for (const fw of ctx.frameworkFiles) files.push(`${RULES_DIR}/${fw}`);
+  if (ctx.hasPackageRules) files.push(`${RULES_DIR}/${F.PACKAGE_RULES}`);
+
+  const config: Record<string, unknown> = {
+    $schema: 'https://opencode.ai/config.json',
+    instructions: files,
+    formatter: true,
+    permission: {
+      '*': 'ask',
+      read: 'allow',
+    },
+  };
+
+  return [
+    {
+      filename: 'opencode.json',
+      content: JSON.stringify(config, null, 2) + '\n',
+    },
+  ];
+}
+
 // ---- Registry ----
 
 /** Maps agent keys to generator functions. */
@@ -224,6 +252,7 @@ const GENERATOR_MAP: Record<string, AgentGenerator> = {
   'github-copilot': generateCopilotInstructions,
   continue: generateContinueRules,
   windsurf: generateWindsurfRules,
+  opencode: generateOpenCodeJson,
 };
 
 /**
@@ -266,4 +295,5 @@ export {
   generateCopilotInstructions,
   generateContinueRules,
   generateWindsurfRules,
+  generateOpenCodeJson,
 };

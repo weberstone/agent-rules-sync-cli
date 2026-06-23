@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.0] — 2026-06-23
+
+### Added
+- OpenCode agent generator (`opencode.json`) with explicit `instructions` array for selected rules.
+- 
 ## [0.3.4] — 2026-06-20
 
 ### Changed

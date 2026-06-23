@@ -52,6 +52,37 @@ describe('writeRulesDir', () => {
     const stat = await fs.stat(path.join(tmpDir, '.agents', 'rules'));
     expect(stat.isDirectory()).toBe(true);
   });
+
+  it('removes stale files not present in the new compiled set', async () => {
+    // Write two files first run
+    await service.writeRulesDir([
+      { filename: 'keep.md', content: '# Keep' },
+      { filename: 'stale.md', content: '# Stale' },
+    ]);
+
+    // Second run: only keep.md — stale.md should be removed
+    await service.writeRulesDir([{ filename: 'keep.md', content: '# Keep v2' }]);
+
+    const keepContent = await fs.readFile(
+      path.join(tmpDir, '.agents', 'rules', 'keep.md'),
+      'utf-8',
+    );
+    expect(keepContent).toBe('# Keep v2');
+
+    await expect(
+      fs.readFile(path.join(tmpDir, '.agents', 'rules', 'stale.md'), 'utf-8'),
+    ).rejects.toThrow();
+  });
+
+  it('does not remove directories inside .agents/rules/', async () => {
+    const skillsDir = path.join(tmpDir, '.agents', 'rules', 'skills');
+    await fs.mkdir(skillsDir, { recursive: true });
+
+    await service.writeRulesDir([{ filename: 'test.md', content: 'data' }]);
+
+    const stat = await fs.stat(skillsDir);
+    expect(stat.isDirectory()).toBe(true);
+  });
 });
 
 describe('fileExists', () => {
@@ -169,6 +200,97 @@ describe('writeAgentFile', () => {
   });
 });
 
+describe('writeAgentFile — JSON files', () => {
+  it('writes JSON without marker wrapping (create mode)', async () => {
+    const json = JSON.stringify({ $schema: 'https://opencode.ai/config.json', instructions: ['.agents/rules/*.md'] }, null, 2) + '\n';
+    await service.writeAgentFile('opencode.json', json, 'create');
+
+    const content = await fs.readFile(path.join(tmpDir, 'opencode.json'), 'utf-8');
+    expect(content).not.toContain('AGENT-CONTEXT-SYNC-CLI');
+    expect(content).toContain('$schema');
+    expect(content).toContain('.agents/rules/*.md');
+  });
+
+  it('overwrites JSON file without markers (overwrite mode)', async () => {
+    await fs.writeFile(path.join(tmpDir, 'opencode.json'), '{"model":"old"}', 'utf-8');
+    const json = JSON.stringify({ instructions: ['.agents/rules/*.md'] }, null, 2) + '\n';
+    await service.writeAgentFile('opencode.json', json, 'overwrite');
+
+    const content = await fs.readFile(path.join(tmpDir, 'opencode.json'), 'utf-8');
+    expect(content).not.toContain('AGENT-CONTEXT-SYNC-CLI');
+    expect(content).not.toContain('old');
+    expect(content).toContain('instructions');
+  });
+
+  it('merges instructions into existing JSON (update mode)', async () => {
+    const existing = JSON.stringify({ model: 'claude-sonnet', autoupdate: true }, null, 2) + '\n';
+    await fs.writeFile(path.join(tmpDir, 'opencode.json'), existing, 'utf-8');
+
+    const incoming = JSON.stringify({ instructions: ['.agents/rules/*.md'] }, null, 2) + '\n';
+    await service.writeAgentFile('opencode.json', incoming, 'update');
+
+    const content = await fs.readFile(path.join(tmpDir, 'opencode.json'), 'utf-8');
+    const parsed = JSON.parse(content);
+    expect(parsed.model).toBe('claude-sonnet');
+    expect(parsed.autoupdate).toBe(true);
+    expect(parsed.instructions).toEqual(['.agents/rules/*.md']);
+  });
+
+  it('deduplicates instructions array in update mode', async () => {
+    const existing = JSON.stringify({ instructions: ['.agents/rules/userprompt.md'] }, null, 2) + '\n';
+    await fs.writeFile(path.join(tmpDir, 'opencode.json'), existing, 'utf-8');
+
+    const incoming = JSON.stringify({ instructions: ['.agents/rules/userprompt.md', '.agents/rules/workflow.md'] }, null, 2) + '\n';
+    await service.writeAgentFile('opencode.json', incoming, 'update');
+
+    const content = await fs.readFile(path.join(tmpDir, 'opencode.json'), 'utf-8');
+    const parsed = JSON.parse(content);
+    expect(parsed.instructions).toEqual(['.agents/rules/userprompt.md', '.agents/rules/workflow.md']);
+  });
+
+  it('handles .jsonc files same as .json (create mode)', async () => {
+    const json = JSON.stringify({ instructions: ['.agents/rules/*.md'] }, null, 2) + '\n';
+    await service.writeAgentFile('opencode.jsonc', json, 'create');
+
+    const content = await fs.readFile(path.join(tmpDir, 'opencode.jsonc'), 'utf-8');
+    expect(content).not.toContain('AGENT-CONTEXT-SYNC-CLI');
+    expect(content).toContain('instructions');
+  });
+
+  it('merges instructions into existing .jsonc with comments (update mode)', async () => {
+    const existing = [
+      '{',
+      '  // Project config',
+      '  "model": "claude-sonnet",',
+      '  "autoupdate": true,',
+      '  /* user settings */',
+      '  "user": "test",',
+      '}',
+      '',
+    ].join('\n');
+    await fs.writeFile(path.join(tmpDir, 'opencode.jsonc'), existing, 'utf-8');
+
+    const incoming = JSON.stringify({ instructions: ['.agents/rules/*.md'] }, null, 2) + '\n';
+    await service.writeAgentFile('opencode.jsonc', incoming, 'update');
+
+    const content = await fs.readFile(path.join(tmpDir, 'opencode.jsonc'), 'utf-8');
+    const parsed = JSON.parse(content);
+    expect(parsed.model).toBe('claude-sonnet');
+    expect(parsed.autoupdate).toBe(true);
+    expect(parsed.instructions).toEqual(['.agents/rules/*.md']);
+  });
+
+  it('falls back to overwrite on invalid existing JSON in update mode', async () => {
+    await fs.writeFile(path.join(tmpDir, 'opencode.json'), 'not valid json', 'utf-8');
+    const json = JSON.stringify({ instructions: ['.agents/rules/*.md'] }, null, 2) + '\n';
+    await service.writeAgentFile('opencode.json', json, 'update');
+
+    const content = await fs.readFile(path.join(tmpDir, 'opencode.json'), 'utf-8');
+    expect(content).toContain('instructions');
+    expect(content).not.toContain('not valid');
+  });
+});
+
 describe('hasSyncMarkersInFile', () => {
   it('returns false for non-existent file', async () => {
     const result = await service.hasSyncMarkersInFile('nonexistent.md');
@@ -184,6 +306,33 @@ describe('hasSyncMarkersInFile', () => {
   it('returns false when file has no SYNC markers', async () => {
     await fs.writeFile(path.join(tmpDir, 'test.md'), 'plain content', 'utf-8');
     const result = await service.hasSyncMarkersInFile('test.md');
+    expect(result).toBe(false);
+  });
+
+  it('returns true for JSON file generated by our tool', async () => {
+    await service.writeAgentFile('opencode.json', JSON.stringify({ $schema: 'https://opencode.ai/config.json', instructions: ['.agents/rules/userprompt.md'] }, null, 2) + '\n', 'create');
+    const result = await service.hasSyncMarkersInFile('opencode.json');
+    expect(result).toBe(true);
+  });
+
+  it('returns true for jsonc file with comments generated by our tool', async () => {
+    const content = [
+      '{',
+      '  // auto-generated',
+      '  "instructions": [',
+      '    ".agents/rules/userprompt.md"',
+      '  ]',
+      '}',
+      '',
+    ].join('\n');
+    await fs.writeFile(path.join(tmpDir, 'opencode.jsonc'), content, 'utf-8');
+    const result = await service.hasSyncMarkersInFile('opencode.jsonc');
+    expect(result).toBe(true);
+  });
+
+  it('returns false for foreign JSON file', async () => {
+    await fs.writeFile(path.join(tmpDir, 'custom.json'), JSON.stringify({ model: 'gpt-5', autoupdate: false }, null, 2) + '\n', 'utf-8');
+    const result = await service.hasSyncMarkersInFile('custom.json');
     expect(result).toBe(false);
   });
 });

@@ -15,6 +15,7 @@ docs/*
 CLAUDE.md
 AGENTS.md
 GEMINI.md
+opencode.json
 
 # Logs
 logs
